@@ -20,6 +20,7 @@ import {
     setDoc,
     updateDoc,
     deleteDoc,
+    deleteField,
     collection,
     addDoc,
     getDocs,
@@ -1593,6 +1594,52 @@ function renderizarClassificacao() {
 // ─────────────────────────────────────────────────────────────
 // Modal de Placar — registrar resultado de um jogo
 // ─────────────────────────────────────────────────────────────
+const ORDEM_QUARTOS = ["Q1", "Q2", "Q3", "Q4", "OT"];
+
+function adicionarLinhaQuarto(periodo = "Q1", a = "", b = "") {
+    const lista = document.getElementById("quartos-lista");
+    const row = document.createElement("div");
+    row.className = "quarto-row";
+
+    const options = ORDEM_QUARTOS.map(p =>
+        `<option value="${p}" ${p === periodo ? "selected" : ""}>${p}</option>`
+    ).join("");
+
+    row.innerHTML = `
+        <select class="quarto-select form-input">${options}</select>
+        <input type="number" class="quarto-input quarto-input-a form-input" min="0" max="999" placeholder="0" value="${a}">
+        <span class="quarto-sep">×</span>
+        <input type="number" class="quarto-input quarto-input-b form-input" min="0" max="999" placeholder="0" value="${b}">
+        <button type="button" class="btn-remover-quarto">✕</button>
+    `;
+
+    row.querySelector(".btn-remover-quarto").addEventListener("click", () => {
+        row.remove();
+        recalcularTotais();
+    });
+
+    row.querySelectorAll(".quarto-input").forEach(inp =>
+        inp.addEventListener("input", recalcularTotais)
+    );
+
+    lista.appendChild(row);
+    recalcularTotais();
+}
+
+function recalcularTotais() {
+    const rows = document.querySelectorAll("#quartos-lista .quarto-row");
+    if (rows.length === 0) return;
+
+    let somaA = 0, somaB = 0;
+    rows.forEach(row => {
+        somaA += parseInt(row.querySelector(".quarto-input-a").value) || 0;
+        somaB += parseInt(row.querySelector(".quarto-input-b").value) || 0;
+    });
+
+    inputPlacarA.value = somaA;
+    inputPlacarB.value = somaB;
+}
+
 function abrirModalPlacar(jogo) {
     calState.jogoAtivo = jogo;
 
@@ -1603,11 +1650,26 @@ function abrirModalPlacar(jogo) {
     `;
     labelPlacarA.textContent = jogo.timeA.nome;
     labelPlacarB.textContent = jogo.timeB.nome;
-    inputPlacarA.value = "";
-    inputPlacarB.value = "";
+    inputPlacarA.value = jogo.placarA ?? "";
+    inputPlacarB.value = jogo.placarB ?? "";
+
+    // Limpar e pré-popular quartos
+    document.getElementById("quartos-lista").innerHTML = "";
+    if (jogo.quartos) {
+        ORDEM_QUARTOS.filter(p => jogo.quartos[p] != null).forEach(p =>
+            adicionarLinhaQuarto(p, jogo.quartos[p].A, jogo.quartos[p].B)
+        );
+    }
 
     modalPlacar.classList.remove("oculto");
 }
+
+document.getElementById("btn-add-quarto").addEventListener("click", () => {
+    const usados = [...document.querySelectorAll("#quartos-lista .quarto-select")]
+        .map(s => s.value);
+    const proximo = ORDEM_QUARTOS.find(p => !usados.includes(p)) || "Q1";
+    adicionarLinhaQuarto(proximo);
+});
 
 function fecharModalPlacar() {
     modalPlacar.classList.add("oculto");
@@ -1630,10 +1692,21 @@ btnSalvarPlacar.addEventListener("click", async () => {
         btnSalvarPlacar.disabled  = true;
         btnSalvarPlacar.textContent = "Salvando...";
 
+        // Coletar quartos preenchidos
+        const quartosObj = {};
+        document.querySelectorAll("#quartos-lista .quarto-row").forEach(row => {
+            const periodo = row.querySelector(".quarto-select").value;
+            const a = parseInt(row.querySelector(".quarto-input-a").value);
+            const b = parseInt(row.querySelector(".quarto-input-b").value);
+            if (!isNaN(a) && !isNaN(b)) quartosObj[periodo] = { A: a, B: b };
+        });
+        const temQuartos = Object.keys(quartosObj).length > 0;
+
         await updateDoc(doc(db, "ligas", calState.ligaId, "jogos", jogo.id), {
-            placarA: pA,
-            placarB: pB,
-            status:  "finalizado"
+            placarA:  pA,
+            placarB:  pB,
+            status:   "finalizado",
+            quartos:  temQuartos ? quartosObj : deleteField()
         });
 
         // Atualiza localmente para não precisar recarregar do Firebase
@@ -1642,6 +1715,8 @@ btnSalvarPlacar.addEventListener("click", async () => {
             jogoLocal.placarA = pA;
             jogoLocal.placarB = pB;
             jogoLocal.status  = "finalizado";
+            if (temQuartos) jogoLocal.quartos = quartosObj;
+            else delete jogoLocal.quartos;
         }
 
         fecharModalPlacar();
@@ -2322,6 +2397,22 @@ function renderizarJogosJogador() {
         porRodada[jogo.rodada].push(jogo);
     });
 
+    // Calcular record (V/D) de cada time a partir de todos os jogos
+    const records = {};
+    vjcState.jogos.forEach(jogo => {
+        if (jogo.status !== "finalizado") return;
+        const idA = jogo.timeA?.id, idB = jogo.timeB?.id;
+        if (!idA || !idB) return;
+        if (!records[idA]) records[idA] = { v: 0, d: 0 };
+        if (!records[idB]) records[idB] = { v: 0, d: 0 };
+        if (jogo.placarA > jogo.placarB)      { records[idA].v++; records[idB].d++; }
+        else if (jogo.placarB > jogo.placarA) { records[idB].v++; records[idA].d++; }
+    });
+    const getRecord = id => {
+        const r = records[id];
+        return r ? `${r.v}V · ${r.d}D` : "";
+    };
+
     // Labels e cores de cada status
     const statusInfo = {
         finalizado: { label: "✅ Finalizado",  cls: "status-finalizado" },
@@ -2354,51 +2445,124 @@ function renderizarJogosJogador() {
                 dataFormatada = `${dia} ${nomesMes[parseInt(mes, 10) - 1]}`;
             }
 
-            // Linha de meta info (data, hora, local)
-            const metaItens = [];
-            if (dataFormatada || jogo.hora) metaItens.push(`📅 ${[dataFormatada, jogo.hora].filter(Boolean).join(" · ")}`);
-            if (jogo.local)                 metaItens.push(`📍 ${jogo.local}`);
-            const meta = metaItens.length ? `<div class="vjc-card-meta">${metaItens.join("<span class='vjc-sep'>|</span>")}</div>` : "";
+            // Meta info para o header do card
+            const metaHeader = [dataFormatada, jogo.hora, jogo.local].filter(Boolean).join(" · ");
+
+            // Faixa de quartos (só se finalizado e tiver dados)
+            const quartosHtml = (() => {
+                if (!finalizado || !jogo.quartos) return "";
+                const periodos = ORDEM_QUARTOS.filter(p => jogo.quartos[p] != null);
+                if (periodos.length === 0) return "";
+
+                const celulaLabel = (p) => {
+                    const cls = p === "OT" ? "vjc-q-label vjc-q-ot" : "vjc-q-label";
+                    return `<div class="vjc-q-cell ${cls}">${p}</div>`;
+                };
+                const celulaVal = (p, lado) => {
+                    const qA = jogo.quartos[p].A;
+                    const qB = jogo.quartos[p].B;
+                    const v = lado === "A" ? qA : qB;
+                    const venceu = lado === "A" ? qA > qB : qB > qA;
+                    const cls = p === "OT" ? "vjc-q-val vjc-q-ot" : (venceu ? "vjc-q-val vjc-q-winner" : "vjc-q-val");
+                    return `<div class="vjc-q-cell ${cls}">${v}</div>`;
+                };
+
+                const labelsHtml = periodos.map(celulaLabel).join("");
+                const valsA = periodos.map(p => celulaVal(p, "A")).join("");
+                const valsB = periodos.map(p => celulaVal(p, "B")).join("");
+
+                return `<div class="vjc-quarters">
+                    <div class="vjc-q-time">
+                        <div class="vjc-q-header">${labelsHtml}</div>
+                        <div class="vjc-q-vals">${valsA}</div>
+                    </div>
+                    <div class="vjc-q-divider"></div>
+                    <div class="vjc-q-time vjc-q-time-right">
+                        <div class="vjc-q-header">${labelsHtml}</div>
+                        <div class="vjc-q-vals">${valsB}</div>
+                    </div>
+                </div>`;
+            })();
 
             // Observação
             const obs = jogo.obs ? `<div class="vjc-card-obs">💬 ${jogo.obs}</div>` : "";
 
-            // Badge de status
+            // Badge de status com dot
             const si = statusInfo[jogo.status] || { label: jogo.status, cls: "" };
+            const badge = `<span class="vjc-card-status ${si.cls}"><span class="vjc-status-dot"></span>${si.label}</span>`;
+
+            // Records dos times
+            const recA = getRecord(jogo.timeA?.id);
+            const recB = getRecord(jogo.timeB?.id);
+
+            // Corpo: pendente mostra hora em destaque; demais mostram placar
+            const pendente = jogo.status === "pendente";
+            const corpo = pendente
+                ? `<div class="vjc-agendado">
+                        <div class="vjc-time">
+                            <span class="vjc-time-barra" style="background: ${jogo.timeA.cor}"></span>
+                            <div class="vjc-team-info">
+                                <span class="vjc-time-nome">${jogo.timeA.nome}</span>
+                                ${recA ? `<span class="vjc-time-record">${recA}</span>` : ""}
+                            </div>
+                        </div>
+                        <div class="vjc-hora-display">
+                            <span class="vjc-hora-num">${jogo.hora || "—"}</span>
+                            <span class="vjc-hora-vs">vs</span>
+                        </div>
+                        <div class="vjc-time vjc-time-direita">
+                            <div class="vjc-team-info">
+                                <span class="vjc-time-nome">${jogo.timeB.nome}</span>
+                                ${recB ? `<span class="vjc-time-record">${recB}</span>` : ""}
+                            </div>
+                            <span class="vjc-time-barra" style="background: ${jogo.timeB.cor}"></span>
+                        </div>
+                   </div>`
+                : `<div class="vjc-card-confronto">
+                        <div class="vjc-time ${vencedorA ? "vjc-vencedor" : ""}">
+                            <span class="vjc-time-barra" style="background: ${jogo.timeA.cor}"></span>
+                            <div class="vjc-team-info">
+                                <span class="vjc-time-nome">${vencedorA ? '<span class="vjc-coroa">👑</span>' : ""}${jogo.timeA.nome}</span>
+                                ${recA ? `<span class="vjc-time-record">${recA}</span>` : ""}
+                            </div>
+                        </div>
+                        <div class="vjc-placar">
+                            <div class="vjc-placar-nums">
+                                <span class="vjc-placar-num ${vencedorA ? "vjc-vencedor-num" : ""}">${placarA}</span>
+                                <span class="vjc-placar-sep">×</span>
+                                <span class="vjc-placar-num ${vencedorB ? "vjc-vencedor-num" : ""}">${placarB}</span>
+                            </div>
+                            ${finalizado && jogo.placarA !== jogo.placarB
+                                ? `<span class="vjc-diff-badge">+${Math.abs(jogo.placarA - jogo.placarB)} pts</span>`
+                                : ""}
+                        </div>
+                        <div class="vjc-time vjc-time-direita ${vencedorB ? "vjc-vencedor" : ""}">
+                            <div class="vjc-team-info">
+                                <span class="vjc-time-nome">${vencedorB ? '<span class="vjc-coroa">👑</span>' : ""}${jogo.timeB.nome}</span>
+                                ${recB ? `<span class="vjc-time-record">${recB}</span>` : ""}
+                            </div>
+                            <span class="vjc-time-barra" style="background: ${jogo.timeB.cor}"></span>
+                        </div>
+                   </div>`;
 
             return `
                 <div class="vjc-card ${cancelado ? "vjc-card-cancelado" : ""}">
-                    <span class="vjc-card-status ${si.cls}">${si.label}</span>
-
-                    <div class="vjc-card-confronto">
-                        <!-- Time A -->
-                        <div class="vjc-time ${vencedorA ? "vjc-vencedor" : ""}">
-                            <span class="vjc-time-barra" style="background: ${jogo.timeA.cor}"></span>
-                            <span class="vjc-time-nome">${jogo.timeA.nome}</span>
-                        </div>
-
-                        <!-- Placar central -->
-                        <div class="vjc-placar">
-                            <span class="vjc-placar-num ${vencedorA ? "vjc-vencedor-num" : ""}">${placarA}</span>
-                            <span class="vjc-placar-sep">×</span>
-                            <span class="vjc-placar-num ${vencedorB ? "vjc-vencedor-num" : ""}">${placarB}</span>
-                        </div>
-
-                        <!-- Time B -->
-                        <div class="vjc-time vjc-time-direita ${vencedorB ? "vjc-vencedor" : ""}">
-                            <span class="vjc-time-nome">${jogo.timeB.nome}</span>
-                            <span class="vjc-time-barra" style="background: ${jogo.timeB.cor}"></span>
-                        </div>
+                    <div class="vjc-card-header">
+                        ${metaHeader ? `<span class="vjc-meta-info"><svg class="vjc-pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>${metaHeader}</span>` : `<span></span>`}
+                        ${badge}
                     </div>
-
-                    ${meta}
+                    ${corpo}
+                    ${quartosHtml}
                     ${obs}
                 </div>
             `;
         }).join("");
 
         secao.innerHTML = `
-            <div class="vjc-rodada-label">Rodada ${rodada}</div>
+            <div class="vjc-rodada-label">
+                <span class="vjc-rodada-num">${rodada}</span>
+                Rodada ${rodada}
+            </div>
             <div class="vjc-rodada-jogos">${jogosHTML}</div>
         `;
 
@@ -2407,15 +2571,33 @@ function renderizarJogosJogador() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Helpers para renderizarTimesJogador
+// ─────────────────────────────────────────────────────────────
+function gerarIniciais(nome) {
+    const palavras = (nome || "").trim().split(/\s+/);
+    if (palavras.length === 1) return palavras[0].substring(0, 2).toUpperCase();
+    return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
+}
+
+function proximoJogoDoTime(timeId) {
+    return vjcState.jogos
+        .filter(j => j.status === "pendente" && (j.timeA?.id === timeId || j.timeB?.id === timeId))
+        .sort((a, b) => {
+            const da = (a.data || "9999") + (a.hora || "99:99");
+            const db = (b.data || "9999") + (b.hora || "99:99");
+            return da.localeCompare(db);
+        })[0] || null;
+}
+
+// ─────────────────────────────────────────────────────────────
 // renderizarTimesJogador()
-// Lista todos os times da liga em ordem alfabética, mostrando
-// os jogadores de cada time e a posição na classificação atual
+// Lista todos os times da liga ordenados por classificação,
+// com stats strip, próximo jogo e lista colapsável de jogadores
 // ─────────────────────────────────────────────────────────────
 async function renderizarTimesJogador() {
     vjcTimesEl.innerHTML = '<p class="vjc-carregando">Carregando times...</p>';
 
     try {
-        // Carrega times e jogadores em paralelo
         const [timesSnap, jogadoresSnap] = await Promise.all([
             getDocs(collection(db, "ligas", vjcState.ligaId, "times")),
             getDocs(collection(db, "ligas", vjcState.ligaId, "inscricoes"))
@@ -2428,92 +2610,164 @@ async function renderizarTimesJogador() {
             return;
         }
 
-        // Mapeia uid → dados do inscrito (nome, posição)
         const jogadoresMap = {};
-        jogadoresSnap.docs.forEach(d => {
-            jogadoresMap[d.id] = d.data();
-        });
+        jogadoresSnap.docs.forEach(d => { jogadoresMap[d.id] = d.data(); });
 
-        // Descobre qual é o time do usuário logado
         const meuUid = usuarioAtual?.uid || null;
         const meuTimeId = meuUid && jogadoresMap[meuUid] ? jogadoresMap[meuUid].timeId : null;
 
-        // Calcula classificação com os jogos já carregados em vjcState.jogos
         const classificacao = calcularClassificacaoLista(vjcState.jogos);
-        const posMap = {};
-        classificacao.forEach((t, i) => { posMap[t.id] = i + 1; });
-
-        // Ordena times alfabeticamente
-        const timesOrdenados = [...times].sort((a, b) =>
-            a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" })
-        );
+        const classMap = {};
+        classificacao.forEach((t, i) => { classMap[t.id] = { ...t, pos: i + 1 }; });
 
         const total = classificacao.length;
 
+        // Ordena por posição na classificação; times sem jogos ficam no fim
+        const timesOrdenados = [...times].sort((a, b) => {
+            const pa = classMap[a.id]?.pos ?? 9999;
+            const pb = classMap[b.id]?.pos ?? 9999;
+            return pa - pb;
+        });
+
+        const posClasses = {
+            "armador":     "vjc-pos-pg",
+            "ala-armador": "vjc-pos-sg",
+            "ala-pivô":    "vjc-pos-pf",
+            "ala-pivo":    "vjc-pos-pf",
+            "pivô":        "vjc-pos-c",
+            "pivo":        "vjc-pos-c",
+            "ala":         "vjc-pos-sf"
+        };
+
         const cardsHTML = timesOrdenados.map(time => {
-            const pos = posMap[time.id];
+            const stats = classMap[time.id];
+            const pos = stats?.pos;
+            const cor = time.cor || "#555";
+            const iniciais = gerarIniciais(time.nome);
+
             let posLabel = "";
             let posClasse = "";
-
-            if (pos === 1) {
-                posLabel  = "🥇 1º lugar";
-                posClasse = "vjc-time-pos-ouro";
-            } else if (pos === 2) {
-                posLabel  = "🥈 2º lugar";
-                posClasse = "vjc-time-pos-prata";
-            } else if (pos === 3) {
-                posLabel  = "🥉 3º lugar";
-                posClasse = "vjc-time-pos-bronze";
-            } else if (pos) {
-                // Últimos 3 = zona vermelha
+            if (pos === 1) { posLabel = "🥇 1º lugar"; posClasse = "vjc-time-pos-ouro"; }
+            else if (pos === 2) { posLabel = "🥈 2º lugar"; posClasse = "vjc-time-pos-prata"; }
+            else if (pos === 3) { posLabel = "🥉 3º lugar"; posClasse = "vjc-time-pos-bronze"; }
+            else if (pos) {
                 const zonaRebaixamento = total > 3 && pos > total - 3;
-                posLabel  = `${pos}º lugar`;
+                posLabel = `${pos}º lugar`;
                 posClasse = zonaRebaixamento ? "vjc-time-pos-zona" : "vjc-time-pos-normal";
             }
 
-            // Lista de jogadores (de jogadores[] no documento do time)
-            const jogadores = (time.jogadores || []);
+            // Stats strip
+            const v = stats?.v ?? 0;
+            const d = stats?.d ?? 0;
+            const j = stats?.j ?? 0;
+            const cestas = stats?.cestas ?? 0;
+            const aproveitamento = j > 0 ? Math.round((v / j) * 100) : 0;
+            const ptsPorJogo = j > 0 ? (cestas / j).toFixed(1) : "—";
+            const aprovCor = aproveitamento >= 60 ? "var(--verde)" : aproveitamento >= 40 ? "#f0a500" : "var(--vermelho)";
+
+            const statsHTML = `
+                <div class="vjc-time-stats-strip">
+                    <div class="vjc-stat-item">
+                        <span class="vjc-stat-val">${v}V · ${d}D</span>
+                        <span class="vjc-stat-label">Campanha</span>
+                    </div>
+                    <div class="vjc-stat-item">
+                        <span class="vjc-stat-val" style="color:${aprovCor}">${aproveitamento}%</span>
+                        <span class="vjc-stat-label">Aproveit.</span>
+                    </div>
+                    <div class="vjc-stat-item">
+                        <span class="vjc-stat-val">${ptsPorJogo}</span>
+                        <span class="vjc-stat-label">Pts/jogo</span>
+                    </div>
+                </div>
+            `;
+
+            // Próximo jogo
+            const proximo = proximoJogoDoTime(time.id);
+            let nextGameHTML = "";
+            if (proximo) {
+                const adversario = proximo.timeA?.id === time.id ? proximo.timeB?.nome : proximo.timeA?.nome;
+                const local = proximo.local ? `· ${proximo.local}` : "";
+                const dataHora = proximo.data
+                    ? `${proximo.data}${proximo.hora ? " · " + proximo.hora : ""}`
+                    : proximo.hora || "";
+                nextGameHTML = `
+                    <div class="vjc-time-next-game">
+                        <span class="vjc-next-label">Próximo</span>
+                        <span class="vjc-next-info">vs ${adversario || "?"}${local}</span>
+                        ${dataHora ? `<span class="vjc-next-time">${dataHora}</span>` : ""}
+                    </div>
+                `;
+            }
+
+            // Jogadores
+            const jogadores = time.jogadores || [];
             const jogadoresHTML = jogadores.length > 0
                 ? jogadores.map(j => {
                     const dados = jogadoresMap[j.uid] || {};
                     const posicao = dados.posicao || j.posicao || "";
-                    // Mapeia posição para classe de cor
-                    const posClasses = {
-                        "armador":     "vjc-pos-pg",
-                        "ala-armador": "vjc-pos-sg",
-                        "ala-pivô":    "vjc-pos-pf",
-                        "ala-pivo":    "vjc-pos-pf",
-                        "pivô":        "vjc-pos-c",
-                        "pivo":        "vjc-pos-c",
-                        "ala":         "vjc-pos-sf"
-                    };
+                    const nome = j.nomeJogador || dados.nomeJogador || "Jogador";
                     const posKey = Object.keys(posClasses).find(k => posicao.toLowerCase().includes(k)) || "";
                     const posCorClasse = posClasses[posKey] || "";
                     return `
                         <div class="vjc-time-jogador">
-                            <span class="vjc-time-jogador-nome">${j.nomeJogador || dados.nomeJogador || "Jogador"}</span>
-                            ${posicao ? `<span class="vjc-time-jogador-pos ${posCorClasse}">${posicao}</span>` : ""}
+                            <div class="vjc-jogador-avatar" style="background:${cor}33;color:${cor}">${gerarIniciais(nome)}</div>
+                            <div class="vjc-time-jogador-info">
+                                <span class="vjc-time-jogador-nome">${nome}</span>
+                                ${posicao ? `<span class="vjc-time-jogador-pos ${posCorClasse}">${posicao}</span>` : ""}
+                            </div>
                         </div>
                     `;
                 }).join("")
-                : '<span class="vjc-time-sem-jogadores">Nenhum jogador</span>';
+                : '<span class="vjc-time-sem-jogadores" style="padding:0.75rem 1.1rem;display:block;font-size:0.8rem;opacity:0.5">Nenhum jogador</span>';
 
             return `
-                <div class="vjc-time-card ${meuTimeId === time.id ? "vjc-meu-time" : ""}" style="border-top: 3px solid ${time.cor || '#555'}">
+                <div class="vjc-time-card ${meuTimeId === time.id ? "vjc-meu-time" : ""}">
+                    <div class="vjc-time-accent-bar" style="background:linear-gradient(90deg,${cor},transparent)"></div>
                     <div class="vjc-time-card-header">
-                        <div class="vjc-time-card-info">
-                            <span class="vjc-time-card-nome" style="color:${time.cor || '#fff'}">${time.nome}</span>
+                        <div class="vjc-time-avatar" style="background:${cor}22;color:${cor};border-color:${cor}55">${iniciais}</div>
+                        <div class="vjc-time-titulo">
+                            <span class="vjc-time-card-nome">${time.nome}</span>
                             ${posLabel ? `<span class="vjc-time-pos-badge ${posClasse}">${posLabel}</span>` : ""}
                         </div>
                     </div>
+                    ${statsHTML}
+                    ${nextGameHTML}
                     <div class="vjc-time-card-jogadores">
                         ${jogadoresHTML}
                     </div>
+                    <button class="vjc-collapse-btn" data-open="true" aria-label="Recolher jogadores">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                        <span>Recolher jogadores</span>
+                    </button>
                 </div>
             `;
         }).join("");
 
         vjcTimesEl.innerHTML = `<div class="vjc-times-lista">${cardsHTML}</div>`;
+
+        // Inicializa max-height para cada lista de jogadores (necessário para a transição CSS)
+        vjcTimesEl.querySelectorAll(".vjc-time-card-jogadores").forEach(el => {
+            el.style.maxHeight = el.scrollHeight + "px";
+        });
+
+        // Listener de collapse via delegação
+        vjcTimesEl.querySelector(".vjc-times-lista").addEventListener("click", e => {
+            const btn = e.target.closest(".vjc-collapse-btn");
+            if (!btn) return;
+            const card = btn.closest(".vjc-time-card");
+            const lista = card.querySelector(".vjc-time-card-jogadores");
+            const aberto = btn.dataset.open === "true";
+            if (aberto) {
+                lista.style.maxHeight = "0";
+                btn.dataset.open = "false";
+                btn.querySelector("span").textContent = "Ver jogadores";
+            } else {
+                lista.style.maxHeight = lista.scrollHeight + "px";
+                btn.dataset.open = "true";
+                btn.querySelector("span").textContent = "Recolher jogadores";
+            }
+        });
 
     } catch (erro) {
         console.error("Erro ao carregar times:", erro);
@@ -2522,45 +2776,49 @@ async function renderizarTimesJogador() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Helpers para renderizarClassificacaoJogador
+// ─────────────────────────────────────────────────────────────
+function formaDoTime(timeId) {
+    return vjcState.jogos
+        .filter(j => j.status === "finalizado" &&
+            (j.timeA?.id === timeId || j.timeB?.id === timeId))
+        .sort((a, b) => {
+            const da = (a.data || "") + (a.hora || "");
+            const db = (b.data || "") + (b.hora || "");
+            return da.localeCompare(db);
+        })
+        .slice(-5)
+        .map(j => (j.timeA?.id === timeId ? j.placarA > j.placarB : j.placarB > j.placarA) ? "w" : "l");
+}
+
+// ─────────────────────────────────────────────────────────────
 // renderizarClassificacaoJogador()
-// Tabela de classificação estilizada para a view do jogador
-// Mesma lógica do admin (V=2pts, D=1pt), visual diferente
 // ─────────────────────────────────────────────────────────────
 function renderizarClassificacaoJogador() {
-    // Coleta times únicos
     const times = {};
     vjcState.jogos.forEach(jogo => {
         [jogo.timeA, jogo.timeB].forEach(t => {
-            if (!times[t.id]) {
-                times[t.id] = { nome: t.nome, cor: t.cor, j: 0, v: 0, d: 0, pts: 0, cestas: 0, cestasSofridas: 0 };
+            if (t?.id && !times[t.id]) {
+                times[t.id] = { id: t.id, nome: t.nome, cor: t.cor, j: 0, v: 0, d: 0, pts: 0, cestas: 0, cestasSofridas: 0 };
             }
         });
     });
 
-    // Calcula resultados
     vjcState.jogos.filter(j => j.status === "finalizado").forEach(jogo => {
-        const a = times[jogo.timeA.id];
-        const b = times[jogo.timeB.id];
+        const a = times[jogo.timeA?.id];
+        const b = times[jogo.timeB?.id];
         if (!a || !b) return;
-
         a.j++; b.j++;
-        a.cestas += jogo.placarA;    a.cestasSofridas += jogo.placarB;
-        b.cestas += jogo.placarB;    b.cestasSofridas += jogo.placarA;
-
-        if (jogo.placarA > jogo.placarB) {
-            a.v++; a.pts += 3; b.d++;  // derrota = 0 pontos
-        } else if (jogo.placarB > jogo.placarA) {
-            b.v++; b.pts += 3; a.d++;  // derrota = 0 pontos
-        } else {
-            a.v++; a.pts += 1; b.v++; b.pts += 1;
-        }
+        a.cestas += jogo.placarA || 0; a.cestasSofridas += jogo.placarB || 0;
+        b.cestas += jogo.placarB || 0; b.cestasSofridas += jogo.placarA || 0;
+        if (jogo.placarA > jogo.placarB)      { a.v++; a.pts += 3; b.d++; }
+        else if (jogo.placarB > jogo.placarA) { b.v++; b.pts += 3; a.d++; }
+        else                                   { a.v++; a.pts += 1; b.v++; b.pts += 1; }
     });
 
-    // Ordena: pts → saldo de pontos → cestas feitas
     const ordenado = Object.values(times).sort((x, y) => {
         if (y.pts !== x.pts) return y.pts - x.pts;
-        const sx = x.cestas - x.cestasSofridas;
-        const sy = y.cestas - y.cestasSofridas;
+        const sx = x.cestas - x.cestasSofridas, sy = y.cestas - y.cestasSofridas;
         if (sy !== sx) return sy - sx;
         return y.cestas - x.cestas;
     });
@@ -2570,45 +2828,82 @@ function renderizarClassificacaoJogador() {
         return;
     }
 
-    const total = ordenado.length;
+    const badgeClass = i => ["p1","p2","p3"][i] ?? "p4";
+    const rowClass   = i => ["pos-1","pos-2","pos-3"][i] ?? "";
 
-    // Medalhas para os 3 primeiros
-    const medalhas = ["🥇", "🥈", "🥉"];
-    // Classes de destaque
-    const classesPosicao = [
-        "vjc-class-ouro",
-        "vjc-class-prata",
-        "vjc-class-bronze"
-    ];
-
-    // Cards de classificação (um por time)
-    const cardsHTML = ordenado.map((t, i) => {
-        const posLabel  = i < 3 ? medalhas[i] : `${i + 1}º`;
-        const classePos = i < 3 ? classesPosicao[i] : (i >= total - 3 && total > 3 ? "vjc-class-zona-rebaixamento" : "");
-        const saldo    = t.cestas - t.cestasSofridas;
-        const saldoStr = saldo >= 0 ? `+${saldo}` : `${saldo}`;
+    const rowsHTML = ordenado.map((t, i) => {
+        const forma = formaDoTime(t.id);
+        // Dots vazios à esquerda, resultados à direita
+        const pad = 5 - forma.length;
+        const dotsHTML = Array.from({ length: 5 }, (_, k) => {
+            const cls = k < pad ? "empty" : forma[k - pad];
+            return `<div class="vjc-form-dot ${cls}"></div>`;
+        }).join("");
 
         return `
-            <div class="vjc-class-card ${classePos}">
-                <div class="vjc-class-pos">${posLabel}</div>
-                <span class="vjc-class-cor" style="background: ${t.cor}"></span>
-                <div class="vjc-class-info">
-                    <span class="vjc-class-nome">${t.nome}</span>
-                    <div class="vjc-class-stats">
-                        <span title="Jogos">J <strong>${t.j}</strong></span>
-                        <span title="Vitórias" class="vjc-stat-v">V <strong>${t.v}</strong></span>
-                        <span title="Derrotas" class="vjc-stat-d">D <strong>${t.d}</strong></span>
-                        <span title="Saldo de pontos">SP <strong>${saldoStr}</strong></span>
-                    </div>
+            <div class="vjc-class-row ${rowClass(i)}">
+                <div class="vjc-class-pos-cell">
+                    <div class="vjc-class-pos-badge ${badgeClass(i)}">${i + 1}</div>
                 </div>
-                <div class="vjc-class-pts">${t.pts}<small>pts</small></div>
+                <div class="vjc-class-team-cell">
+                    <div class="vjc-class-team-dot" style="background:${t.cor || "#555"}"></div>
+                    <span class="vjc-class-team-name">${t.nome}</span>
+                </div>
+                <div class="vjc-class-td">${t.j}</div>
+                <div class="vjc-class-td wins">${t.v}</div>
+                <div class="vjc-class-td loss">${t.d}</div>
+                <div class="vjc-class-td"><div class="vjc-form-strip">${dotsHTML}</div></div>
+                <div class="vjc-class-pts-cell">
+                    <span class="vjc-class-pts-val">${t.pts}</span>
+                    <span class="vjc-class-pts-label">pts</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    // Bar chart de média de pontos por jogo
+    const medias = ordenado.map(t => t.j > 0 ? t.cestas / t.j : 0);
+    const maxMedia = Math.max(...medias, 1);
+    const avgBarsHTML = ordenado.map((t, i) => {
+        const media = medias[i];
+        const pct = (media / maxMedia * 100).toFixed(1);
+        return `
+            <div class="vjc-avg-row">
+                <span class="vjc-avg-row-name">${t.nome}</span>
+                <div class="vjc-avg-track">
+                    <div class="vjc-avg-fill" style="width:${pct}%;background:${t.cor || "#555"}"></div>
+                </div>
+                <span class="vjc-avg-row-val">${media > 0 ? media.toFixed(1) : "—"}</span>
             </div>
         `;
     }).join("");
 
     vjcClassEl.innerHTML = `
-        <div class="vjc-class-lista">${cardsHTML}</div>
-        <p class="vjc-class-legenda">V = 3pts · D = 0pts · Critério de desempate: Saldo de pontos</p>
+        <div class="vjc-class-table">
+            <div class="vjc-class-head">
+                <div class="vjc-class-th">#</div>
+                <div class="vjc-class-th left">Time</div>
+                <div class="vjc-class-th">J</div>
+                <div class="vjc-class-th">V</div>
+                <div class="vjc-class-th">D</div>
+                <div class="vjc-class-th">Forma</div>
+                <div class="vjc-class-th">Pts</div>
+            </div>
+            ${rowsHTML}
+            <div class="vjc-class-legend">
+                <div class="vjc-class-legend-item">
+                    <div class="vjc-class-legend-dot" style="background:var(--verde)"></div>V = Vitória
+                </div>
+                <div class="vjc-class-legend-item">
+                    <div class="vjc-class-legend-dot" style="background:var(--cor3)"></div>D = Derrota
+                </div>
+                <div class="vjc-class-legend-item" style="opacity:.6">Forma = últimos 5 jogos</div>
+            </div>
+            <div class="vjc-avg-wrap">
+                <div class="vjc-avg-label">Média de pontos por jogo</div>
+                <div class="vjc-avg-bars">${avgBarsHTML}</div>
+            </div>
+        </div>
     `;
 }
 // ================================================================

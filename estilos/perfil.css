@@ -1,65 +1,9 @@
-﻿@charset "UTF-8";
+@charset "UTF-8";
 
-/* ════════════════════════════════════════════════════
-   BASE
-════════════════════════════════════════════════════ */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* perfil.css — estilos específicos da página de perfil */
+/* Depende de: global.css (variáveis, reset, html, body) */
 
-/* ════ PALETA DE CORES */
-
-:root {
-    --cor1:     #2A4759;
-    --cor2:       #8C765A;
-    --cor3: #A66844;
-    --cor4: #260B01;
-    --cor5: #8C452B;
-    --branco: #ededef;
-}
-
-body {
-    background-color: var(--cor4);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-}
-
-/* Oculta uma seção (alterna entre view e edit) */
-.oculto {
-    display: none !important;
-}
-
-/* ════════════════════════════════════════════════════
-   HEADER
-════════════════════════════════════════════════════ */
-.main-header {
-    width: 100%;
-    max-width: 750px;
-    padding-bottom: 15px;
-}
-
-.logo-area {
-    display: flex;
-    justify-content: center;
-    padding: 10px;
-}
-
-.logo-app {
-    width: 100%;
-    height: auto;
-    border-radius: 8px;
-    max-width: 300px;
-    min-width: 100px;
-}
-
-/* ════════════════════════════════════════════════════
-   NAVBAR BOTTOM (fixa na parte de baixo)
-════════════════════════════════════════════════════ */
+/* ════ NAVBAR BOTTOM (fixa na parte de baixo) */
 .nav-bar-bottom {
     position: fixed;
     bottom: 0;
@@ -68,18 +12,18 @@ body {
     width: 100%;
     max-width: 750px;
     background-color: var(--cor2);
-    border-top: 1px solid  #8c452b8a;
+    border-top: 1px solid var(--cinza-claro);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 10px 0 14px;
+    padding: 20px 0 14px;
     z-index: 100;
 }
 
 .link-bottom {
-    color: var(--cor4);
+    color: var(--branco);
     text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     display: flex;
     flex-direction: column;
@@ -91,23 +35,16 @@ body {
 }
 
 .link-bottom:hover {
-    color: #fff;
-    font-size: 15px;
+    color: var(--cinza-claro);
+    background-color: var(--amarelo);
 }
 
-.link-bottom.ativo {
-    color:var(--cor1);
-    font-weight: bold;
-}
-
-/* Espaço para o conteúdo não ficar atras da nav bottom */
+/* Espaço para o conteúdo não ficar atrás da nav bottom */
 body {
     padding-bottom: 70px;
 }
 
-/* ════════════════════════════════════════════════════
-   CONTAINER PRINCIPAL
-════════════════════════════════════════════════════ */
+/* ════ CONTAINER PRINCIPAL */
 .perfil-container {
     width: 100%;
     max-width: 480px;
@@ -119,9 +56,7 @@ body {
     gap: 10px;
 }
 
-/* ════════════════════════════════════════════════════
-   FOTO DE PERFIL
-════════════════════════════════════════════════════ */
+/* ════ FOTO DE PERFIL */
 .foto-wrapper {
     position: relative;
     width: 110px;
@@ -129,13 +64,12 @@ body {
     margin-bottom: 8px;
 }
 
-/* Anel laranja ao redor da foto (estilo Instagram Stories) */
 .foto-wrapper::before {
     content: "";
     position: absolute;
     inset: -4px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #8C765A, #57452e);
+    background: linear-gradient(135deg, #39789c, #135285);
     z-index: 0;
 }
 
@@ -144,7 +78,7 @@ body {
     height: 110px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid #57452e;
+    border: 3px solid #2fb4e9;
     position: relative;
     z-index: 1;
     display: block;
@@ -154,7 +88,6 @@ body {
     cursor: pointer;
 }
 
-/* Ícone de câmera ao passar o mouse na foto de edição */
 .overlay-camera {
     position: absolute;
     inset: 0;
@@ -167,20 +100,14 @@ body {
     opacity: 0;
     transition: opacity 0.2s;
     z-index: 2;
+    pointer-events: none; /* clique passa para o wrapper */
 }
 
 .foto-wrapper.editavel:hover .overlay-camera {
     opacity: 1;
 }
 
-/* O overlay não intercepta cliques — o clique passa para o wrapper */
-.overlay-camera {
-    pointer-events: none;
-}
-
-/* ════════════════════════════════════════════════════
-   MODO VISUALIZAÇÃO
-════════════════════════════════════════════════════ */
+/* ════ MODO VISUALIZAÇÃO */
 .view-nome {
     font-size: 22px;
     font-weight: 700;
@@ -194,18 +121,16 @@ body {
     margin-top: -4px;
 }
 
-/* Badge verde com a posição do jogador */
 .badge-posicao {
-    background: linear-gradient(90deg, #8C765A, #80715d);
-    color: #260B01;
+    background: linear-gradient(90deg, #78afcf, #135285);
+    color: white;
     font-size: 12px;
     font-weight: 600;
-    padding: 4px 14px;
+    padding: 10px 14px;
     border-radius: 20px;
     letter-spacing: 1px;
     margin: 6px 0;
     text-transform: uppercase;
-    padding: 10px;
 }
 
 .view-bio {
@@ -217,9 +142,7 @@ body {
     padding: 4px 0 10px;
 }
 
-/* ════════════════════════════════════════════════════
-   REDES SOCIAIS — MODO VISUALIZAÇÃO
-════════════════════════════════════════════════════ */
+/* ════ REDES SOCIAIS — MODO VISUALIZAÇÃO */
 .view-redes {
     display: flex;
     flex-wrap: wrap;
@@ -229,14 +152,13 @@ body {
     max-width: 320px;
 }
 
-/* Chip clicável de cada rede */
 .rede-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid color-mix(in srgb, var(--rede-cor) 50%, transparent);
-    color: color-mix(in srgb, var(--rede-cor) 80%, #ededef);
+    color: color-mix(in srgb, var(--rede-cor) 80%, var(--branco));
     font-size: 12px;
     font-weight: 600;
     padding: 5px 12px;
@@ -255,23 +177,19 @@ body {
     font-size: 14px;
 }
 
-/* ════════════════════════════════════════════════════
-   REDES SOCIAIS — MODO EDIÇÃO
-════════════════════════════════════════════════════ */
+/* ════ REDES SOCIAIS — MODO EDIÇÃO */
 .redes-edit-lista {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-/* Linha de cada rede: ícone + input lado a lado */
 .rede-edit-item {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-/* Label colorido com nome da rede */
 .rede-label {
     font-size: 11px;
     font-weight: 700;
@@ -283,18 +201,17 @@ body {
     flex-shrink: 0;
 }
 
-.rede-instagram { background: rgba(193, 53, 132, 0.2); color: #e8849e; border: 1px solid rgba(193, 53, 132, 0.4); }
-.rede-tiktok    { background: rgba(237, 237, 239, 0.1); color: #ededef; border: 1px solid rgba(237, 237, 239, 0.3); }
-.rede-twitter   { background: rgba(29, 161, 242, 0.15); color: #7ec8f5; border: 1px solid rgba(29, 161, 242, 0.35); }
-.rede-youtube   { background: rgba(255, 0, 0, 0.15);   color: #f08080; border: 1px solid rgba(255, 0, 0, 0.3); }
+.rede-instagram { background: rgba(193, 53, 132, 0.2);   color: #e8849e; border: 1px solid rgba(193, 53, 132, 0.4); }
+.rede-tiktok    { background: rgba(255, 255, 255, 0.1);  color: var(--branco); border: 1px solid rgba(255, 255, 255, 0.3); }
+.rede-twitter   { background: rgba(29, 161, 242, 0.15);  color: #7ec8f5; border: 1px solid rgba(29, 161, 242, 0.35); }
+.rede-youtube   { background: rgba(255, 0, 0, 0.15);     color: #f08080; border: 1px solid rgba(255, 0, 0, 0.3); }
 
-/* Input mais compacto para ficar ao lado do label */
 .input-rede {
     padding: 8px 12px;
     font-size: 13px;
 }
 
-/* Botões da view */
+/* ════ BOTÕES DA VIEW */
 .view-acoes {
     display: flex;
     gap: 10px;
@@ -315,7 +232,7 @@ body {
 
 .btn-editar:hover {
     border-color: #2A4759;
-    color: #755831;
+    color: rgb(218, 218, 218);
 }
 
 .btn-sair {
@@ -334,9 +251,7 @@ body {
     color: #c0392b;
 }
 
-/* ════════════════════════════════════════════════════
-   MODO EDIÇÃO
-════════════════════════════════════════════════════ */
+/* ════ MODO EDIÇÃO */
 .campo-edit {
     width: 100%;
     display: flex;
@@ -350,16 +265,13 @@ body {
     text-transform: uppercase;
     letter-spacing: 1.5px;
     font-weight: 600;
-    width: auto;
-    padding-top: 0;
-    margin-bottom: 0;
 }
 
 .input-edit {
     width: 100%;
-    background: #80715dcc;
-    border: 1.5px solid #2A4759;
-    color: #fff;
+    background: rgb(228, 227, 227);
+    border: 1.5px solid var(--cor5);
+    color: black;
     padding: 12px 14px;
     border-radius: 8px;
     font-size: 14px;
@@ -370,7 +282,7 @@ body {
 .input-edit:focus {
     outline: none;
     border-color: #2A4759;
-    box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.1);
+    box-shadow: 0 0 0 3px #135285;
 }
 
 .textarea-edit {
@@ -385,10 +297,10 @@ body {
 }
 
 .select-edit option {
-    background: #2A4759;
+    background: #135285;
 }
 
-/* Botões do modo edição */
+/* ════ BOTÕES DO MODO EDIÇÃO */
 .edit-acoes {
     display: flex;
     gap: 10px;
@@ -398,9 +310,9 @@ body {
 
 .btn-salvar {
     flex: 1;
-    background: linear-gradient(90deg, #634b2c, #70593ae5);
+    background: linear-gradient(90deg, #3a7fb8, #1C62EB);
     border: none;
-    color: #260B01;
+    color: white;
     padding: 13px;
     border-radius: 8px;
     font-size: 14px;
@@ -432,7 +344,7 @@ body {
     color: #ccc;
 }
 
-/* Mensagem de feedback — fica abaixo das duas seções, sempre visível */
+/* ════ MENSAGEM DE FEEDBACK */
 .msg-feedback {
     font-size: 13px;
     font-weight: 500;
@@ -446,22 +358,14 @@ body {
 
 .msg-feedback.sucesso { color: #27ae60; }
 .msg-feedback.erro    { color: #c0392b; }
-.msg-feedback.info    { color: #808a9f;    }
+.msg-feedback.info    { color: #808a9f; }
 
-/* ════════════════════════════════════════════════════
-   RESPONSIVIDADE — celulares até 480px
-════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
     .perfil-container {
         padding: 24px 16px 32px;
     }
 
-    /* Foto menor em mobile — wrapper E pseudo-element precisam bater */
-    .foto-wrapper {
-        width: 90px;
-        height: 90px;
-    }
-
+    .foto-wrapper,
     .foto-perfil {
         width: 90px;
         height: 90px;
@@ -475,7 +379,6 @@ body {
         font-size: 13px;
     }
 
-    /* Botões de ação ficam lado a lado e ocupam toda a largura */
     .view-acoes {
         width: 100%;
         justify-content: center;
@@ -488,9 +391,8 @@ body {
         padding: 10px 12px;
     }
 
-    /* font-size 16px evita zoom automático no iOS ao focar o input */
     .input-edit {
-        font-size: 16px;
+        font-size: 16px; /* evita zoom automático no iOS */
         padding: 12px;
     }
 

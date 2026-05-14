@@ -1,0 +1,116 @@
+@charset "UTF-8";
+
+@font-face {
+    font-family: 'basquete';
+    src: url('../fontes/Basketball.otf');
+}
+
+/* ════ PALETA DE CORES */
+:root {
+    --cor1:         #181717;    /* Preto profundo - fundo principal */
+    --cor2:         #1C62EB;    /* Azul brilhante - primary (nav, botões) */
+    --cor3:         #fb4144;    /* Vermelho vibrante - destaques, alerts */
+    --cor4:         #0f1419;    /* Preto ultra escuro - fundo geral */
+    --cor5:         #3b76ab;    /* Azul médio - accent secundário */
+    --branco:       #ffffff;    /* Branco puro - texto claro */
+    --cinza-claro:  #f3f4f5;    /* Cinza claro - backgrounds alternativos */
+    --cinza-escuro: #8e9196;    /* Cinza escuro - texto secundário */
+    --laranja:      #f76f26;    /* Laranja NBA - botões alternativos */
+    --verde:        #3bb327;    /* Verde - success/validação */
+    --amarelo:      #fbc64b;    /* Amarelo - warning/atenção */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Fundo fora do card central (páginas de app) */
+html {
+    background-color: rgb(36, 36, 36);
+    min-height: 100vh;
+}
+
+/* Layout base das páginas de app (hub, jogadores, perfil, liga) */
+body {
+    background-color: var(--cor1);
+    max-width: 750px;
+    width: 100%;
+    margin: auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+    border-radius: 7px;
+}
+
+.oculto {
+    display: none !important;
+}
+
+/* ════ HEADER */
+.main-header {
+    width: 100%;
+    padding-bottom: 15px;
+}
+
+.logo-area {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+}
+
+.logo-app {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    max-width: 300px;
+    min-width: 100px;
+}
+
+/* ════ NAVBAR */
+.nav-bar {
+    background-color: var(--cor2);
+    border-radius: 5px;
+    padding: 8px;
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: nowrap;
+    width: 100%;
+}
+
+.link {
+    color: var(--branco);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.link:hover {
+    background-color: var(--amarelo);
+    color: #ffffff;
+}
+
+@media (max-width: 480px) {
+    body {
+        border-radius: 0;
+    }
+
+    .logo-app {
+        max-width: 200px;
+    }
+
+    .link {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+}

@@ -1,23 +1,9 @@
 @charset "UTF-8";
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* cadastro.css — estilos específicos da tela de cadastro */
+/* Depende de: global.css (variáveis, reset) */
 
-
-/* ════ PALETA DE CORES */
-
-:root {
-    --cor1:     #2A4759;
-    --cor2:       #8C765A;
-    --cor3: #A66844;
-    --cor4: #260B01;
-    --cor5: #8C452B;
-    --branco: #ededef;
-}
-
+/* Sobrescreve o body do global.css para layout centralizado com fundo */
 body {
     margin: 0;
     min-height: 100vh;
@@ -36,7 +22,7 @@ section {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background-color:var(--cor1);
+    background-color: var(--cor1);
     padding: 30px;
     width: 100%;
     max-width: 450px;
@@ -53,20 +39,19 @@ h1 {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    margin-bottom: 20px;
     width: 100%;
     border-radius: 10px;
     height: 50px;
-    display: flex;
     align-items: center;
     padding-left: 10px;
     transition: 0.2s ease-in-out;
+    margin-bottom: 20px;
 }
 
 .campo label {
     width: 100%;
     margin-bottom: 2px;
-    color:#ebebeb;
+    color: #ebebeb;
 }
 
 .campo input {
@@ -89,25 +74,22 @@ button {
     margin: 20px 0 10px 0;
     background-color: #c7c5c5;
     border: none;
-    color:var(--cor1);
+    color: var(--cor1);
     font-size: 15px;
-    font-weight: 500;
+    font-weight: bold;
     border-radius: 10px;
     height: 50px;
     width: 100%;
     cursor: pointer;
-    font-weight: bold;
 }
 
 button:hover {
-    background-color: x 0;
     background-color: #c7c5c554;
     color: white;
 }
 
 p {
     text-align: center;
-    color: x 0;
     font-size: 14px;
     margin: 5px 0;
     color: aliceblue;
@@ -116,8 +98,7 @@ p {
 a {
     font-size: 14px;
     margin-left: 5px;
-    color: x 0;
-color: #dbe9f1dc;
+    color: #dbe9f1dc;
     font-weight: 500;
     cursor: pointer;
     text-decoration: none;
@@ -128,7 +109,6 @@ a:hover {
     color: #94bdd6;
 }
 
-/* Mensagem de feedback do formulário de cadastro */
 #msg-feedback {
     font-size: 13px;
     text-align: center;
@@ -137,9 +117,6 @@ a:hover {
     margin-bottom: 5px;
 }
 
-/* ════════════════════════════════════════════════════
-   RESPONSIVIDADE — celulares até 480px
-════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
     body {
         padding: 12px;

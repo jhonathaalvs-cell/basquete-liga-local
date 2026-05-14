@@ -1,109 +1,9 @@
-﻿@charset "UTF-8";
+@charset "UTF-8";
 
-/* ════════════════════════════════════════════════════
-   BASE
-════════════════════════════════════════════════════ */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* jogadores.css — estilos específicos da página de jogadores */
+/* Depende de: global.css (variáveis, reset, html, body, header, navbar) */
 
-
-:root {
-    --cor1: #2A4759;
-    --cor2: #8C765A;
-    --cor3: #A66844;
-    --cor4: #260B01;
-    --cor5: #8C452B;
-    --branco: #ededef;
-}
-
-html {
-    background-color: var(--cor4);
-    min-height: 100vh;
-    max-width: 750px;
-    width: 100%;
-    /* garante que não transborda em telas menores que 750px */
-    margin: auto;
-    min-height: 100vh;
-    position: relative;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-    border-radius: 7px;
-}
-
-.oculto {
-    display: none !important;
-}
-
-/* ════════════════════════════════════════════════════
-   HEADER
-════════════════════════════════════════════════════ */
-.main-header {
-    width: 100%;
-    max-width: 750px;
-    margin: 0 auto;
-    padding-bottom: 10px;
-}
-
-.logo-area {
-    display: flex;
-    justify-content: center;
-    padding: 10px;
-}
-
-.logo-app {
-    width: 100%;
-    height: auto;
-    border-radius: 8px;
-    max-width: 300px;
-    min-width: 100px;
-}
-
-/* ════════════════════════════════════════════════════
-   NAVBAR
-════════════════════════════════════════════════════ */
-.nav-bar {
-    background-color: var(--cor2);
-    border-radius: 5px;
-    padding: 6px 8px;
-    display: flex;
-    gap: 4px;
-    justify-content: center;
-    flex-wrap: nowrap; /* mantém tudo em uma única linha */
-    width: 100%;
-    max-width: 750px;
-}
-
-.link {
-    color: rgb(51, 3, 3);
-    text-decoration: none;
-    font-weight: bold;
-    border: 5px solid transparent;
-    border-radius: 20px;
-    padding: 8px 0;
-    flex: 1;            /* cada link ocupa espaço igual na linha */
-    text-align: center; /* centraliza o texto dentro do espaço */
-    white-space: nowrap;
-    transition: 0.4s;
-}
-
-.link:hover {
-    color: rgb(253, 253, 253);
-    background: #8C452B;
-    box-shadow: 0 0 5px #260B01;
-    animation: 0.3s;
-}
-
-.link.ativo {
-    color: rgb(253, 253, 253);
-    background: #8C452B;
-    box-shadow: 0 0 5px #260B01;
-}
-
-/* ════════════════════════════════════════════════════
-   CONTAINER PRINCIPAL
-════════════════════════════════════════════════════ */
+/* ════ CONTAINER PRINCIPAL */
 .jog-container {
     width: 100%;
     max-width: 750px;
@@ -125,9 +25,7 @@ html {
     padding: 60px 0;
 }
 
-/* ════════════════════════════════════════════════════
-   FILTROS
-════════════════════════════════════════════════════ */
+/* ════ FILTROS */
 .jog-filtros {
     display: flex;
     gap: 10px;
@@ -139,7 +37,7 @@ html {
     background: var(--cor2);
     border: 1px solid rgba(128, 138, 159, 0.055);
     border-radius: 10px;
-    color: var(--cor4);
+    color: var(--cinza-claro);
     font-size: 13px;
     padding: 8px 14px;
     cursor: pointer;
@@ -154,9 +52,7 @@ html {
     border-color: white;
 }
 
-/* ════════════════════════════════════════════════════
-   SEÇÃO DE LIGA
-════════════════════════════════════════════════════ */
+/* ════ SEÇÃO DE LIGA */
 .jog-secao {
     margin-bottom: 32px;
 }
@@ -181,9 +77,7 @@ html {
     background: whitesmoke;
 }
 
-/* ════════════════════════════════════════════════════
-   LISTA E CARDS
-════════════════════════════════════════════════════ */
+/* ════ LISTA E CARDS */
 .jog-lista {
     display: flex;
     flex-direction: column;
@@ -194,41 +88,30 @@ html {
     display: flex;
     align-items: center;
     gap: 14px;
-    background: var(--cor2);
-    border: 1px solid #8c765ad0;
+    background: rgb(9, 53, 199);
+    border: 1px solid #0f1419;
     border-radius: 0;
     padding: 14px 16px;
-    border-bottom: 1px solid #8C765A;
+    border-bottom: 1px solid #0f1419;
     transition: background 0.15s;
 }
 
-.jog-card:first-child {
-    border-radius: 12px 12px 0 0;
-}
-
-.jog-card:last-child {
-    border-radius: 0 0 12px 12px;
-    border-bottom: none;
-}
-
-.jog-card:only-child {
-    border-radius: 12px;
-}
+.jog-card:first-child { border-radius: 12px 12px 0 0; }
+.jog-card:last-child  { border-radius: 0 0 12px 12px; border-bottom: none; }
+.jog-card:only-child  { border-radius: 12px; }
 
 .jog-card:hover {
-    background: #8C452B;
+    background: var(--cor2);
 }
 
-/* Número do jogador na lista */
 .jog-num {
     font-size: 15px;
     font-weight: 700;
-    color: var(--cor4);
+    color: white;
     min-width: 24px;
     text-align: center;
 }
 
-/* Bolinha com a cor do time */
 .jog-time-cor {
     width: 10px;
     height: 10px;
@@ -236,7 +119,6 @@ html {
     flex-shrink: 0;
 }
 
-/* Info principal */
 .jog-info {
     flex: 1;
     min-width: 0;
@@ -245,7 +127,7 @@ html {
 .jog-nome {
     font-size: 16px;
     font-weight: 600;
-    color: var(--cor4);
+    color: white;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -253,14 +135,13 @@ html {
 
 .jog-time-nome {
     font-size: 13px;
-    color: #031927;
+    color: white;
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Porcentagem de vitórias */
 .jog-pct {
     font-size: 20px;
     font-weight: 800;
@@ -268,32 +149,19 @@ html {
     letter-spacing: -0.5px;
 }
 
-.jog-pct-alto {
-    color: #06110c;
-}
-
-.jog-pct-medio {
-    color: #06110cd8;
-}
-
-.jog-pct-baixo {
-    color: #b60f92;
-}
-
-.jog-pct-nd {
-    color: rgba(128, 138, 159, 0.5);
-    font-size: 16px;
-}
+.jog-pct-alto  { color: #06110c; }
+.jog-pct-medio { color: #06110cd8; }
+.jog-pct-baixo { color: #b60f92; }
+.jog-pct-nd    { color: rgba(128, 138, 159, 0.5); font-size: 16px; }
 
 .jog-pct-label {
     font-size: 11px;
-    color: rgb(0, 0, 0);
+    color: rgb(248, 248, 248);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
 }
 
-/* Coluna direita: badge de posição + contador de inscrições */
 .jog-direita {
     display: flex;
     flex-direction: column;
@@ -304,11 +172,11 @@ html {
 
 .jog-inscricoes {
     font-size: 14px;
-    color: #031927;
+    font-weight: bold;
+    color: #033634;
     white-space: nowrap;
 }
 
-/* Badge de posição (agora dentro de .jog-info) */
 .jog-pos {
     display: inline-block;
     font-size: 11px;
@@ -319,7 +187,7 @@ html {
     white-space: nowrap;
 }
 
-/* Redes sociais do jogador — linha de emojis clicáveis */
+/* ════ REDES SOCIAIS */
 .jog-redes {
     display: flex;
     gap: 6px;
@@ -327,7 +195,6 @@ html {
     flex-wrap: wrap;
 }
 
-/* Cada emoji é um link discreto que fica mais visível ao hover */
 .jog-rede-chip {
     display: inline-flex;
     align-items: center;
@@ -338,68 +205,29 @@ html {
     background: rgba(38, 11, 1, 0.4);
     border: 1px solid rgba(237, 237, 239, 0.2);
     font-size: 13px;
-    color: color-mix(in srgb, var(--rede-cor, #ededef) 80%, #ededef);
+    color: color-mix(in srgb, var(--rede-cor, var(--branco)) 80%, var(--branco));
     text-decoration: none;
     transition: background 0.2s, transform 0.15s;
     flex-shrink: 0;
 }
 
 .jog-rede-chip:hover {
-    background: color-mix(in srgb, var(--rede-cor, #8C452B) 30%, rgba(38,11,1,0.6));
+    background: color-mix(in srgb, var(--rede-cor, var(--cor3)) 30%, rgba(15, 20, 25, 0.6));
     transform: scale(1.2);
-    border-color: color-mix(in srgb, var(--rede-cor, #ededef) 60%, transparent);
+    border-color: color-mix(in srgb, var(--rede-cor, var(--branco)) 60%, transparent);
 }
 
-/* Cores por posição — baseadas na paleta do app */
+/* ════ BADGES DE POSIÇÃO */
+.jog-pos-pg { color: #82d8db; background: rgba(4, 12, 17, 0.35);   border: 1px solid rgba(4, 16, 24, 0.7); }
+.jog-pos-sg { color: #ededef; background: rgba(237, 237, 239, 0.12); border: 1px solid rgba(237, 237, 239, 0.35); }
+.jog-pos-sf { color: #dfa870; background: rgba(166, 104, 68, 0.25); border: 1px solid rgba(166, 104, 68, 0.55); }
+.jog-pos-pf { color: #e8845e; background: rgba(140, 69, 43, 0.3);   border: 1px solid rgba(140, 69, 43, 0.6); }
+.jog-pos-c  { color: #f0c87a; background: rgba(200, 155, 60, 0.2);  border: 1px solid rgba(200, 155, 60, 0.45); }
+.jog-pos-nd { color: rgba(237, 237, 239, 0.35); background: rgba(38, 11, 1, 0.25); border: 1px solid rgba(237, 237, 239, 0.15); }
 
-/* Armador (PG) — azul de --cor1 iluminado */
-.jog-pos-pg {
-    color: #82d8db;
-    background: rgba(4, 12, 17, 0.35);
-    border: 1px solid rgba(4, 16, 24, 0.7);
-}
-
-/* Ala-armador (SG) — --branco suave */
-.jog-pos-sg {
-    color: #ededef;
-    background: rgba(237, 237, 239, 0.12);
-    border: 1px solid rgba(237, 237, 239, 0.35);
-}
-
-/* Ala (SF) — --cor3 iluminado */
-.jog-pos-sf {
-    color: #dfa870;
-    background: rgba(166, 104, 68, 0.25);
-    border: 1px solid rgba(166, 104, 68, 0.55);
-}
-
-/* Ala-pivô (PF) — --cor5 iluminado */
-.jog-pos-pf {
-    color: #e8845e;
-    background: rgba(140, 69, 43, 0.3);
-    border: 1px solid rgba(140, 69, 43, 0.6);
-}
-
-/* Pivô (C) — dourado âmbar que harmoniza com a paleta quente */
-.jog-pos-c {
-    color: #f0c87a;
-    background: rgba(200, 155, 60, 0.2);
-    border: 1px solid rgba(200, 155, 60, 0.45);
-}
-
-/* Sem posição (ND) — neutro discreto */
-.jog-pos-nd {
-    color: rgba(237, 237, 239, 0.35);
-    background: rgba(38, 11, 1, 0.25);
-    border: 1px solid rgba(237, 237, 239, 0.15);
-}
-
-/* ════════════════════════════════════════════════════
-   RESPONSIVO
-════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
     .jog-card {
-        padding: 12px 12px;
+        padding: 12px;
         gap: 10px;
     }
 

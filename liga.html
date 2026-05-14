@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="estilos/global.css">
     <link rel="stylesheet" href="estilos/liga.css">
 </head>
 
@@ -19,7 +20,7 @@
     ════════════════════════════════════ -->
     <header class="main-header">
         <div class="logo-area">
-            <img src="imagens/icone.png" alt="icone" class="logo-app">
+            <img src="imagens/logo-liga.png" alt="icone" class="logo-app">
         </div>
     </header>
 
@@ -377,6 +378,15 @@
                         <input id="input-placar-b" class="form-input form-input-pequeno placar-numero"
                                type="number" min="0" max="999" placeholder="0">
                     </div>
+                </div>
+
+                <!-- Seção de quartos (opcional) -->
+                <div class="quartos-secao">
+                    <div class="quartos-secao-header">
+                        <span class="quartos-secao-label">Quartos</span>
+                        <button type="button" id="btn-add-quarto" class="btn-add-quarto">+ Quarto</button>
+                    </div>
+                    <div id="quartos-lista" class="quartos-lista"></div>
                 </div>
 
                 <button id="btn-salvar-placar" class="btn-primario">Salvar Resultado ✅</button>

@@ -1,41 +1,23 @@
 @charset "UTF-8";
 
-/* ════ PALETA DE CORES */
+/* login.css — estilos específicos da tela de login */
+/* Depende de: global.css (variáveis, reset, @font-face) */
 
-:root {
-    --cor1:     #2A4759;
-    --cor2:       #8C765A;
-    --cor3: #A66844;
-    --cor4: #260B01;
-    --cor5: #8C452B;
-    --branco: #ededef;
-}
-
-@font-face {
-    font-family: 'basquete';
-    src: url('../fontes/Basketball.otf');
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* Sobrescreve o body do global.css para layout centralizado com fundo */
 body {
     margin: 0;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    /* height: 100vh removido — em celulares com teclado aberto o body
-       ficava pequeno demais e o form saía da tela */
     background-color: black;
     background-image: url('../imagens/fundo-login.png');
     background-repeat: no-repeat;
     background-position: center center;
     background-size: cover;
-    padding: 16px; /* evita que o card encoste nas bordas em telas pequenas */
+    padding: 16px;
+    /* height: 100vh removido — em celulares com teclado aberto o body
+       ficava pequeno demais e o form saía da tela */
 }
 
 section {
@@ -53,7 +35,7 @@ input {
     height: 30px;
     text-align: center;
     background-color: rgba(67, 92, 107, 0.411);
-    color: #ededef;
+    color: var(--branco);
     border-radius: 6px;
 }
 
@@ -68,7 +50,6 @@ input:hover {
     font-weight: normal;
     color: #c7c5c5;
 }
-
 
 #login-form {
     display: flex;
@@ -94,7 +75,6 @@ input:hover {
     align-items: center;
     padding-left: 10px;
     transition: 0.2s ease-in-out;
-
 }
 
 .flex-row {
@@ -105,7 +85,7 @@ input:hover {
     justify-content: space-between;
 }
 
-.flex-row>div>label {
+.flex-row > div > label {
     font-size: 14px;
     color: var(--branco);
     font-weight: 400;
@@ -126,17 +106,15 @@ input:hover {
 
 .button-submit {
     margin: 20px 0 10px 0;
-    background-color: x 0;
     background-color: #c7c5c5;
     border: 1px solid rgba(38, 11, 1, 0.726);
     color: var(--cor1);
     font-size: 15px;
-    font-weight: 500;
+    font-weight: bold;
     border-radius: 10px;
     height: 50px;
     width: 100%;
     cursor: pointer;
-    font-weight: bold;
 }
 
 .button-submit:hover {
@@ -149,8 +127,8 @@ a {
     color: var(--branco);
 }
 
-p{
-color: rgba(255, 255, 255, 0.945);
+p {
+    color: rgba(255, 255, 255, 0.945);
 }
 
 .p {
@@ -160,7 +138,7 @@ color: rgba(255, 255, 255, 0.945);
     margin: 5px 0;
 }
 
-.social-login>p {
+.social-login > p {
     display: flex;
     justify-content: center;
 }
@@ -181,7 +159,6 @@ color: rgba(255, 255, 255, 0.945);
 
 .btn:hover {
     border: 1px solid #2d79f3;
-    ;
 }
 
 .btn-google {
@@ -200,7 +177,6 @@ color: rgba(255, 255, 255, 0.945);
     transition: 0.2s ease-in-out;
 }
 
-/* Mensagem de erro exibida quando o login falha */
 #msg-erro {
     color: #c0392b;
     font-size: 13px;
@@ -209,9 +185,6 @@ color: rgba(255, 255, 255, 0.945);
     font-weight: 500;
 }
 
-/* ════════════════════════════════════════════════════
-   RESPONSIVIDADE — celulares até 480px
-════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
     body {
         padding: 12px;
@@ -243,7 +216,6 @@ color: rgba(255, 255, 255, 0.945);
         height: 46px;
     }
 
-    /* "Remember me" e "Esqueceu" empilham em telas muito pequenas */
     .flex-row {
         flex-wrap: wrap;
         gap: 8px;

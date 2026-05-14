@@ -1,87 +1,7 @@
-﻿@charset "UTF-8";
+@charset "UTF-8";
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-:root {
-    --cor1: #2A4759;
-    --cor2: #8C765A;
-    --cor3: #A66844;
-    --cor4: #260B01;
-    --cor5: #8C452B;
-    --branco: #ededef;
-}
-
-/* Fundo da página inteira fora do card central */
-html {
-    background-color: var(--cor4);
-    min-height: 100vh;
-    max-width: 750px;
-    width: 100%;
-    /* garante que não transborda em telas menores que 750px */
-    margin: auto;
-    min-height: 100vh;
-    position: relative;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-    border-radius: 7px;
-}
-
-.logo-area {
-    display: flex;
-    justify-content: center;
-    /* Centraliza a logo no header */
-    padding: 10px;
-}
-
-header {
-    background-image: rgba(119, 7, 7, 0.904);
-    padding-bottom: 15px;
-}
-
-.logo-app {
-    width: 100%;
-    /* flexível: ocupa o espaço disponível */
-    height: auto;
-    border-radius: 8px;
-    max-width: 300px;
-    min-width: 100px;
-    /* reduzido para não transbordar em telas de 320px */
-}
-
-.nav-bar {
-    background-color:var(--cor2);
-    border-radius: 5px;
-    padding: 10px 8px;
-    /* padding lateral reduzido para não apertar em mobile */
-    display: flex;
-    gap: 8px;
-    /* gap menor para caber os 4 links em telas pequenas */
-    justify-content: center;
-    flex-wrap: wrap;
-    /* se não couber em uma linha, quebra para a próxima */
-    width: 100%;
-    max-width: 750px;
-}
-
-.link {
-    color: rgb(51, 3, 3);
-    text-decoration: none;
-    font-weight: bold;
-    border: 5px solid transparent;
-    border-radius: 20px;
-    padding: 8px 20px;
-    transition: 0.4s;
-}
-
-.link:hover {
-    color: rgb(253, 253, 253);
-    background: #8C452B;
-    box-shadow: 0 0 5px #260B01;
-    animation: 0.3s;
-}
+/* hub.css — estilos específicos da página de feed/hub */
+/* Depende de: global.css (variáveis, reset, html, body, header, navbar) */
 
 .feed-conteiner {
     background: rgba(44, 73, 127, 0.12);
@@ -93,7 +13,6 @@ header {
     transition: transform 0.3s ease, border-color 0.3s ease;
     overflow: hidden;
     margin-top: 15px;
-
 }
 
 .feed-conteiner::before {
@@ -107,8 +26,8 @@ header {
 }
 
 .feed-conteiner:hover {
-    transform: translatey(-5px);
-    border-color: #ccf5ac;
+    transform: translateY(-5px);
+    border-color: var(--cinza-claro);
     background: rgba(44, 73, 127, 0.2);
 }
 
@@ -129,11 +48,10 @@ header {
     padding: 10px 0 4px;
     letter-spacing: 1px;
     text-transform: uppercase;
-    border-bottom: 2px solid var(--cor3);
+    border-bottom: 2px solid var(--verde);
     margin-bottom: 16px;
 }
 
-/* Mensagem de carregamento */
 .hub-loading {
     color: var(--branco);
     text-align: center;
@@ -146,7 +64,6 @@ header {
     display: none;
 }
 
-/* Mensagem quando não há posts ainda */
 .hub-vazio {
     color: var(--branco);
     text-align: center;
@@ -158,9 +75,9 @@ header {
 
 /* ── Card de cada post ───────────────────────────────────── */
 .hub-card {
-    background: rgba(44, 11, 1, 0.65);
-    border: 1px solid rgba(166, 104, 68, 0.35);
-    border-left: 4px solid var(--cor3);
+    background: var(--cor1);
+    border: 1px solid #6e788d;
+    border-left: 4px solid var(--cor5);
     border-radius: 10px;
     margin-bottom: 18px;
     overflow: hidden;
@@ -168,19 +85,19 @@ header {
 }
 
 .hub-card:hover {
-    border-color: var(--cor3);
+    border-color: #f76f26;
     transform: translateY(-3px);
 }
 
-/* ── Cabeçalho do card (nome da liga + número da rodada) ── */
+/* ── Cabeçalho do card ── */
 .hub-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     padding: 12px 16px 10px;
-    background: rgba(140, 69, 43, 0.25);
-    border-bottom: 1px solid rgba(166, 104, 68, 0.25);
+    background: #474f61;
+    border-bottom: 1px solid #7a8196;
     flex-wrap: wrap;
 }
 
@@ -191,7 +108,7 @@ header {
 }
 
 .hub-rodada-badge {
-    background: var(--cor5);
+    background: var(--verde);
     color: var(--branco);
     font-size: 0.75rem;
     font-weight: bold;
@@ -208,9 +125,8 @@ header {
     gap: 6px;
 }
 
-/* Título de seção interna (Resultados / Como está a tabela) */
 .hub-secao-titulo {
-    color: var(--cor3);
+    color: var(--laranja);
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -237,13 +153,13 @@ header {
 }
 
 .hub-confronto {
-    color: var(--branco);
+    color: whitesmoke;
     font-size: 0.95rem;
     font-weight: bold;
 }
 
 .hub-frase-jogo {
-    color: rgba(237, 237, 239, 0.7);
+    color: whitesmoke;
     font-size: 0.82rem;
     font-style: italic;
 }
@@ -268,14 +184,14 @@ header {
     font-weight: bold;
 }
 
-/* ── Textos narrativos (abertura / lanternas / fechamento) ─ */
+/* ── Textos narrativos ─ */
 .hub-narrativa {
-    color: rgba(237, 237, 239, 0.85);
+    color: whitesmoke;
     font-size: 0.9rem;
     line-height: 1.55;
 }
 
-/* ── Rodapé do card (data) ───────────────────────────────── */
+/* ── Rodapé do card ───────────────────────────────────────── */
 .hub-card-rodape {
     padding: 8px 16px;
     text-align: right;
@@ -283,7 +199,6 @@ header {
     color: rgba(237, 237, 239, 0.4);
     border-top: 1px solid rgba(166, 104, 68, 0.12);
 }
-
 
 .feed-conteiner p {
     color: #808a9f;
@@ -298,25 +213,7 @@ header {
     margin-top: 10px;
 }
 
-/* ════════════════════════════════════════════════════
-   RESPONSIVIDADE — celulares até 480px
-════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
-    body {
-        border-radius: 0;
-        /* remove borda arredondada que cortava o conteúdo */
-    }
-
-    .logo-app {
-        max-width: 200px;
-    }
-
-    .link {
-        padding: 6px 12px;
-        /* botões da nav menores para caber os 4 */
-        font-size: 13px;
-    }
-
     .feed-conteiner {
         padding: 16px;
         margin-top: 10px;
