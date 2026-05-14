@@ -95,10 +95,11 @@ body {
     transition: background 0.2s, color 0.2s;
 }
 
-.link:hover {
-    background-color: var(--amarelo);
-    color: #ffffff;
-}
+.link:visited { color: var(--branco); text-decoration: none; }
+
+.link:hover { background-color: var(--amarelo); color: #ffffff; }
+
+.link.ativo { background-color: rgba(255, 255, 255, 0.18); color: var(--branco); }
 
 @media (max-width: 480px) {
     body {
