@@ -67,15 +67,42 @@ input:hover {
     transition: 0.2s ease-in-out;
 }
 
+.senha-wrapper {
+    position: relative;
+}
+
 #password {
+    width: 100%;
+    box-sizing: border-box;
     border: 1.5px solid rgba(38, 11, 1, 0.726);
     border-radius: 10px;
     height: 50px;
-    display: flex;
-    align-items: center;
     padding-left: 10px;
+    padding-right: 44px;
     transition: 0.2s ease-in-out;
 }
+
+.btn-toggle-senha {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+.btn-toggle-senha:hover { color: var(--branco); }
+.btn-toggle-senha svg   { width: 18px; height: 18px; display: block; }
+
+.btn-toggle-senha .icon-eye-off          { display: none; }
+.btn-toggle-senha.mostrar .icon-eye      { display: none; }
+.btn-toggle-senha.mostrar .icon-eye-off  { display: block; }
 
 .flex-row {
     display: flex;

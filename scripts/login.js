@@ -132,3 +132,12 @@ function esqueceuSenha() {
 document.getElementById("btn-entrar").addEventListener("click", fazerLogin);
 document.getElementById("btn-google").addEventListener("click", loginGoogle);
 document.getElementById("btn-esqueceu").addEventListener("click", esqueceuSenha);
+
+document.getElementById("btn-toggle-senha").addEventListener("click", () => {
+    const input = document.getElementById("password");
+    const btn   = document.getElementById("btn-toggle-senha");
+    const mostrar = input.type === "password";
+    input.type = mostrar ? "text" : "password";
+    btn.classList.toggle("mostrar", mostrar);
+    btn.setAttribute("aria-label", mostrar ? "Ocultar senha" : "Mostrar senha");
+});
