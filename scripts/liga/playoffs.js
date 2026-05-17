@@ -42,30 +42,29 @@ export function calcularClassificacaoLista(jogos) {
         return y.cestas - x.cestas;
     });
 }
-// Modulo de playoffs - gerenciamento do chaveamento eliminatorio
-//
-// Uso em liga.js:
-//   import { initPlayoffs } from './liga/playoffs.js';
-//   const po = initPlayoffs(ctx);
 
+// Modulo de playoffs - gerenciamento do chaveamento eliminatorio
 export function initPlayoffs(ctx) {
     const {
-        db, collection, doc, getDocs, updateDoc, writeBatch,
+        db, collection, doc, getDoc, getDocs, addDoc, updateDoc, writeBatch,
         serverTimestamp, query, orderBy,
         mostrarFeedback, carregarLigasAdmin
     } = ctx;
 
-
-    // ════════════════════════════════════════════════════════════════
-    // PLAYOFFS — Fase eliminatória melhor de 3
-    // ════════════════════════════════════════════════════════════════
+    // ─── Configuração de formatos MD ─────────────────────────────
+    const MD_CONFIG = {
+        MD1: { vit: 1, max: 1, label: "Jogo único" },
+        MD3: { vit: 2, max: 3, label: "Melhor de 3" },
+        MD5: { vit: 3, max: 5, label: "Melhor de 5" },
+        MD7: { vit: 4, max: 7, label: "Melhor de 7" },
+    };
 
     // ─── Estado dos playoffs ─────────────────────────────────────
     let poState = {
         ligaId:      null,
         ligaNome:    "",
-        confrontos:  [],    // array carregado do Firestore
-        jogoAtivo:   null   // confronto aberto no modal de registrar jogo
+        confrontos:  [],
+        jogoAtivo:   null
     };
 
     // ─── DOM refs: modal iniciar playoffs ────────────────────────
@@ -74,11 +73,12 @@ export function initPlayoffs(ctx) {
     const btnCancelarIniciarPlayoffs = document.getElementById("btn-cancelar-iniciar-playoffs");
     const btnConfirmarPlayoffs       = document.getElementById("btn-confirmar-playoffs");
     const poNumTimes                 = document.getElementById("po-num-times");
+    const poFormatosFases            = document.getElementById("po-formatos-fases");
 
     // ─── DOM refs: modal bracket ─────────────────────────────────
-    const modalPlayoffs    = document.getElementById("modal-playoffs");
-    const poLigaNomeEl     = document.getElementById("po-liga-nome");
-    const poCorpo          = document.getElementById("po-corpo");
+    const modalPlayoffs     = document.getElementById("modal-playoffs");
+    const poLigaNomeEl      = document.getElementById("po-liga-nome");
+    const poCorpo           = document.getElementById("po-corpo");
     const btnFecharPlayoffs = document.getElementById("btn-fechar-playoffs");
 
     // ─── DOM refs: modal registrar jogo ──────────────────────────
@@ -91,6 +91,53 @@ export function initPlayoffs(ctx) {
     const poJogoInputB        = document.getElementById("po-jogo-placar-b");
     const btnFecharJogoPlayoff = document.getElementById("btn-fechar-jogo-playoff");
     const btnSalvarJogoPlayoff = document.getElementById("btn-salvar-jogo-playoff");
+    const poQuartosLista       = document.getElementById("po-quartos-lista");
+    const poBtnAddQuarto       = document.getElementById("po-btn-add-quarto");
+
+    // ─── Quartos do modal de playoff ─────────────────────────────
+    const ORDEM_QUARTOS_PO = ["Q1", "Q2", "Q3", "Q4", "OT"];
+
+    function adicionarLinhaQuartoPo(periodo = "Q1", a = "", b = "") {
+        const row = document.createElement("div");
+        row.className = "quarto-row";
+        const options = ORDEM_QUARTOS_PO.map(p =>
+            `<option value="${p}" ${p === periodo ? "selected" : ""}>${p}</option>`
+        ).join("");
+        row.innerHTML = `
+            <select class="quarto-select form-input">${options}</select>
+            <input type="number" class="quarto-input quarto-input-a form-input" min="0" max="999" placeholder="0" value="${a}">
+            <span class="quarto-sep">×</span>
+            <input type="number" class="quarto-input quarto-input-b form-input" min="0" max="999" placeholder="0" value="${b}">
+            <button type="button" class="btn-remover-quarto">✕</button>
+        `;
+        row.querySelector(".btn-remover-quarto").addEventListener("click", () => {
+            row.remove();
+            recalcularTotaisPo();
+        });
+        row.querySelectorAll(".quarto-input").forEach(inp =>
+            inp.addEventListener("input", recalcularTotaisPo)
+        );
+        poQuartosLista.appendChild(row);
+        recalcularTotaisPo();
+    }
+
+    function recalcularTotaisPo() {
+        const rows = poQuartosLista.querySelectorAll(".quarto-row");
+        if (rows.length === 0) return;
+        let somaA = 0, somaB = 0;
+        rows.forEach(row => {
+            somaA += parseInt(row.querySelector(".quarto-input-a").value) || 0;
+            somaB += parseInt(row.querySelector(".quarto-input-b").value) || 0;
+        });
+        poJogoInputA.value = somaA;
+        poJogoInputB.value = somaB;
+    }
+
+    poBtnAddQuarto.addEventListener("click", () => {
+        const usados = [...poQuartosLista.querySelectorAll(".quarto-select")].map(s => s.value);
+        const proximo = ORDEM_QUARTOS_PO.find(p => !usados.includes(p)) || "Q1";
+        adicionarLinhaQuartoPo(proximo);
+    });
 
     // Fechar modais
     btnFecharIniciarPlayoffs.addEventListener("click", fecharModalIniciarPlayoffs);
@@ -103,37 +150,66 @@ export function initPlayoffs(ctx) {
     btnFecharJogoPlayoff.addEventListener("click", fecharJogoPlayoff);
     modalJogoPlayoff.addEventListener("click", e => { if (e.target === modalJogoPlayoff) fecharJogoPlayoff(); });
 
-    function fecharModalIniciarPlayoffs() {
-        modalIniciarPlayoffs.classList.add("oculto");
+    function fecharModalIniciarPlayoffs() { modalIniciarPlayoffs.classList.add("oculto"); }
+    function fecharModalPlayoffs()        { modalPlayoffs.classList.add("oculto"); document.body.style.overflow = ""; }
+    function fecharJogoPlayoff()          { modalJogoPlayoff.classList.add("oculto"); poState.jogoAtivo = null; }
+
+    // ─────────────────────────────────────────────────────────────
+    // Selects de formato MD por fase (gerados dinamicamente)
+    // ─────────────────────────────────────────────────────────────
+    const FASES_POR_NUM = { 2: ["final"], 4: ["semi", "final"], 8: ["quartas", "semi", "final"] };
+    const NOMES_FASE    = { quartas: "Quartas de Final", semi: "Semifinais", final: "Final" };
+    const PADRAO_FASE   = { quartas: "MD1", semi: "MD3", final: "MD5" };
+
+    function renderizarSelectsFormato() {
+        const num   = parseInt(poNumTimes.value) || 4;
+        const fases = FASES_POR_NUM[num] || ["final"];
+
+        poFormatosFases.innerHTML = fases.map(f => `
+            <div style="margin-top:14px">
+                <label class="form-label" for="po-fmt-${f}">${NOMES_FASE[f]} — Formato</label>
+                <select id="po-fmt-${f}" class="form-input form-select">
+                    <option value="MD1" ${PADRAO_FASE[f] === "MD1" ? "selected" : ""}>MD1 — Jogo único</option>
+                    <option value="MD3" ${PADRAO_FASE[f] === "MD3" ? "selected" : ""}>MD3 — Melhor de 3 (2 vit.)</option>
+                    <option value="MD5" ${PADRAO_FASE[f] === "MD5" ? "selected" : ""}>MD5 — Melhor de 5 (3 vit.)</option>
+                    <option value="MD7" ${PADRAO_FASE[f] === "MD7" ? "selected" : ""}>MD7 — Melhor de 7 (4 vit.)</option>
+                </select>
+            </div>
+        `).join("");
     }
 
-    function fecharModalPlayoffs() {
-        modalPlayoffs.classList.add("oculto");
-        document.body.style.overflow = "";
+    function lerFormatoFase(fase) {
+        const el = document.getElementById(`po-fmt-${fase}`);
+        return el ? el.value : "MD3";
     }
 
-    function fecharJogoPlayoff() {
-        modalJogoPlayoff.classList.add("oculto");
-        poState.jogoAtivo = null;
-    }
+    poNumTimes.addEventListener("change", renderizarSelectsFormato);
+    // Renderiza os selects na inicialização (para o valor padrão 4 times)
+    renderizarSelectsFormato();
 
     // ─────────────────────────────────────────────────────────────
     // abrirModalIniciarPlayoffs(ligaId, ligaNome)
-    // Abre o mini-modal para o admin escolher quantos times avançam
     // ─────────────────────────────────────────────────────────────
     function abrirModalIniciarPlayoffs(ligaId, ligaNome) {
         poState.ligaId   = ligaId;
         poState.ligaNome = ligaNome;
+        renderizarSelectsFormato(); // garante selects atualizados ao abrir
         modalIniciarPlayoffs.classList.remove("oculto");
     }
 
-    // Confirmar: gera o chaveamento
+    // Confirmar: lê formatos e gera o chaveamento
     btnConfirmarPlayoffs.addEventListener("click", async () => {
         const numTimes = parseInt(poNumTimes.value);
+        const formatoFase = {
+            quartas: lerFormatoFase("quartas"),
+            semi:    lerFormatoFase("semi"),
+            final:   lerFormatoFase("final"),
+        };
+
         btnConfirmarPlayoffs.textContent = "Gerando...";
         btnConfirmarPlayoffs.disabled = true;
 
-        const ok = await gerarPlayoffs(poState.ligaId, numTimes);
+        const ok = await gerarPlayoffs(poState.ligaId, numTimes, formatoFase);
 
         btnConfirmarPlayoffs.textContent = "Gerar Chaveamento ⚡";
         btnConfirmarPlayoffs.disabled = false;
@@ -142,15 +218,13 @@ export function initPlayoffs(ctx) {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // gerarPlayoffs(ligaId, numTimes)
-    // Cria os confrontos no Firestore baseado na classificação atual
-    // Liga passa para status "playoffs"
+    // gerarPlayoffs(ligaId, numTimes, formatoFase)
+    // Cria os confrontos no Firestore com formato MD por fase
     // ─────────────────────────────────────────────────────────────
-    async function gerarPlayoffs(ligaId, numTimes) {
+    async function gerarPlayoffs(ligaId, numTimes, formatoFase = {}) {
         mostrarFeedback("Calculando classificação...", "info");
 
         try {
-            // Carrega jogos da fase de grupos para calcular a classificação
             const q    = query(collection(db, "ligas", ligaId, "jogos"), orderBy("rodada"));
             const snap = await getDocs(q);
             const jogos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -162,39 +236,43 @@ export function initPlayoffs(ctx) {
                 return false;
             }
 
-            // Seeds: top N times pelo ranking
-            const seeds = classificacao.slice(0, numTimes);
+            const seeds   = classificacao.slice(0, numTimes);
+            const toTime  = t => ({ id: t.id, nome: t.nome, cor: t.cor });
 
-            // Helper: extrai só id, nome e cor (para salvar no Firestore)
-            const toTime = t => ({ id: t.id, nome: t.nome, cor: t.cor });
+            // Retorna { vit, max, label } para uma fase
+            const fmtDe = fase => MD_CONFIG[formatoFase[fase]] || MD_CONFIG.MD3;
 
             const playoffsRef = collection(db, "ligas", ligaId, "playoffs");
             const batch       = writeBatch(db);
 
+            // Helper: monta campos de formato para um confronto de uma fase
+            const fmtCampos = fase => {
+                const f = fmtDe(fase);
+                return { formato: formatoFase[fase] || "MD3", vitoriasPrecisas: f.vit, maxJogos: f.max };
+            };
+
+            const base = { vitA: 0, vitB: 0, vencedor: null, jogos: [], criadoEm: serverTimestamp() };
             let confrontosData = [];
 
             if (numTimes === 2) {
-                // Final direta: seed 1 × seed 2
                 const finalRef = doc(playoffsRef);
                 confrontosData = [{
-                    ref: finalRef,
-                    data: { fase: "final", ordem: 1, timeA: toTime(seeds[0]), timeB: toTime(seeds[1]), vitA: 0, vitB: 0, vencedor: null, proximoId: null, proximoLado: null, jogos: [], criadoEm: serverTimestamp() }
+                    ref:  finalRef,
+                    data: { ...base, ...fmtCampos("final"), fase: "final", ordem: 1, timeA: toTime(seeds[0]), timeB: toTime(seeds[1]), proximoId: null, proximoLado: null }
                 }];
 
             } else if (numTimes === 4) {
-                // Semis: (1×4) e (2×3) → Final
                 const s1Ref    = doc(playoffsRef);
                 const s2Ref    = doc(playoffsRef);
                 const finalRef = doc(playoffsRef);
 
                 confrontosData = [
-                    { ref: s1Ref,    data: { fase: "semi",  ordem: 1, timeA: toTime(seeds[0]), timeB: toTime(seeds[3]), vitA: 0, vitB: 0, vencedor: null, proximoId: finalRef.id, proximoLado: "A", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: s2Ref,    data: { fase: "semi",  ordem: 2, timeA: toTime(seeds[1]), timeB: toTime(seeds[2]), vitA: 0, vitB: 0, vencedor: null, proximoId: finalRef.id, proximoLado: "B", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: finalRef, data: { fase: "final", ordem: 1, timeA: null, timeB: null,              vitA: 0, vitB: 0, vencedor: null, proximoId: null,         proximoLado: null, jogos: [], criadoEm: serverTimestamp() } }
+                    { ref: s1Ref,    data: { ...base, ...fmtCampos("semi"),  fase: "semi",  ordem: 1, timeA: toTime(seeds[0]), timeB: toTime(seeds[3]), proximoId: finalRef.id, proximoLado: "A" } },
+                    { ref: s2Ref,    data: { ...base, ...fmtCampos("semi"),  fase: "semi",  ordem: 2, timeA: toTime(seeds[1]), timeB: toTime(seeds[2]), proximoId: finalRef.id, proximoLado: "B" } },
+                    { ref: finalRef, data: { ...base, ...fmtCampos("final"), fase: "final", ordem: 1, timeA: null, timeB: null, proximoId: null, proximoLado: null } },
                 ];
 
             } else if (numTimes === 8) {
-                // Quartas: (1×8),(4×5),(2×7),(3×6) → Semis → Final
                 const q1Ref = doc(playoffsRef);
                 const q2Ref = doc(playoffsRef);
                 const q3Ref = doc(playoffsRef);
@@ -204,17 +282,16 @@ export function initPlayoffs(ctx) {
                 const finalRef = doc(playoffsRef);
 
                 confrontosData = [
-                    { ref: q1Ref,    data: { fase: "quartas", ordem: 1, timeA: toTime(seeds[0]), timeB: toTime(seeds[7]), vitA: 0, vitB: 0, vencedor: null, proximoId: s1Ref.id, proximoLado: "A", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: q2Ref,    data: { fase: "quartas", ordem: 2, timeA: toTime(seeds[3]), timeB: toTime(seeds[4]), vitA: 0, vitB: 0, vencedor: null, proximoId: s1Ref.id, proximoLado: "B", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: q3Ref,    data: { fase: "quartas", ordem: 3, timeA: toTime(seeds[1]), timeB: toTime(seeds[6]), vitA: 0, vitB: 0, vencedor: null, proximoId: s2Ref.id, proximoLado: "A", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: q4Ref,    data: { fase: "quartas", ordem: 4, timeA: toTime(seeds[2]), timeB: toTime(seeds[5]), vitA: 0, vitB: 0, vencedor: null, proximoId: s2Ref.id, proximoLado: "B", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: s1Ref,    data: { fase: "semi",    ordem: 1, timeA: null, timeB: null, vitA: 0, vitB: 0, vencedor: null, proximoId: finalRef.id, proximoLado: "A", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: s2Ref,    data: { fase: "semi",    ordem: 2, timeA: null, timeB: null, vitA: 0, vitB: 0, vencedor: null, proximoId: finalRef.id, proximoLado: "B", jogos: [], criadoEm: serverTimestamp() } },
-                    { ref: finalRef, data: { fase: "final",   ordem: 1, timeA: null, timeB: null, vitA: 0, vitB: 0, vencedor: null, proximoId: null,         proximoLado: null, jogos: [], criadoEm: serverTimestamp() } }
+                    { ref: q1Ref,    data: { ...base, ...fmtCampos("quartas"), fase: "quartas", ordem: 1, timeA: toTime(seeds[0]), timeB: toTime(seeds[7]), proximoId: s1Ref.id,    proximoLado: "A" } },
+                    { ref: q2Ref,    data: { ...base, ...fmtCampos("quartas"), fase: "quartas", ordem: 2, timeA: toTime(seeds[3]), timeB: toTime(seeds[4]), proximoId: s1Ref.id,    proximoLado: "B" } },
+                    { ref: q3Ref,    data: { ...base, ...fmtCampos("quartas"), fase: "quartas", ordem: 3, timeA: toTime(seeds[1]), timeB: toTime(seeds[6]), proximoId: s2Ref.id,    proximoLado: "A" } },
+                    { ref: q4Ref,    data: { ...base, ...fmtCampos("quartas"), fase: "quartas", ordem: 4, timeA: toTime(seeds[2]), timeB: toTime(seeds[5]), proximoId: s2Ref.id,    proximoLado: "B" } },
+                    { ref: s1Ref,    data: { ...base, ...fmtCampos("semi"),    fase: "semi",    ordem: 1, timeA: null, timeB: null, proximoId: finalRef.id, proximoLado: "A" } },
+                    { ref: s2Ref,    data: { ...base, ...fmtCampos("semi"),    fase: "semi",    ordem: 2, timeA: null, timeB: null, proximoId: finalRef.id, proximoLado: "B" } },
+                    { ref: finalRef, data: { ...base, ...fmtCampos("final"),   fase: "final",   ordem: 1, timeA: null, timeB: null, proximoId: null,         proximoLado: null } },
                 ];
             }
 
-            // Salva todos os confrontos + muda status da liga para "playoffs"
             confrontosData.forEach(({ ref, data }) => batch.set(ref, data));
             batch.update(doc(db, "ligas", ligaId), { status: "playoffs" });
             await batch.commit();
@@ -232,11 +309,10 @@ export function initPlayoffs(ctx) {
 
     // ─────────────────────────────────────────────────────────────
     // abrirModalPlayoffs(ligaId, ligaNome)
-    // Carrega os confrontos do Firestore e abre o modal de bracket
     // ─────────────────────────────────────────────────────────────
     async function abrirModalPlayoffs(ligaId, ligaNome) {
-        poState.ligaId   = ligaId;
-        poState.ligaNome = ligaNome;
+        poState.ligaId     = ligaId;
+        poState.ligaNome   = ligaNome;
         poState.confrontos = [];
 
         poLigaNomeEl.textContent = `⚡ Playoffs — ${ligaNome}`;
@@ -257,13 +333,11 @@ export function initPlayoffs(ctx) {
 
     // ─────────────────────────────────────────────────────────────
     // renderizarBracketAdmin()
-    // Exibe o bracket completo no modal do admin com botões de edição
     // ─────────────────────────────────────────────────────────────
     function renderizarBracketAdmin() {
-        const ordemFases  = ["quartas", "semi", "final"];
-        const nomesFase   = { quartas: "⚡ Quartas de Final", semi: "🔥 Semifinais", final: "🏆 Final" };
+        const ordemFases = ["quartas", "semi", "final"];
+        const nomesFase  = { quartas: "⚡ Quartas de Final", semi: "🔥 Semifinais", final: "🏆 Final" };
 
-        // Agrupa por fase
         const porFase = {};
         poState.confrontos.forEach(c => {
             if (!porFase[c.fase]) porFase[c.fase] = [];
@@ -277,7 +351,7 @@ export function initPlayoffs(ctx) {
                 <div class="po-fase">
                     <div class="po-fase-label">${nomesFase[fase] || fase}</div>
                     <div class="po-confrontos">
-                        ${lista.map(c => renderizarCardConfronto(c, true)).join("")}
+                        ${lista.map(c => renderizarCardConfronto(c)).join("")}
                     </div>
                 </div>
             `;
@@ -285,7 +359,6 @@ export function initPlayoffs(ctx) {
 
         poCorpo.innerHTML = html || '<p class="draft-carregando">Nenhum confronto encontrado.</p>';
 
-        // Listeners nos botões de registrar jogo
         poCorpo.querySelectorAll(".btn-po-registrar").forEach(btn => {
             btn.addEventListener("click", () => {
                 const c = poState.confrontos.find(x => x.id === btn.dataset.confrontoId);
@@ -295,22 +368,28 @@ export function initPlayoffs(ctx) {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // renderizarCardConfronto(c, ehAdmin)
-    // Retorna o HTML de um card de confronto do bracket
+    // renderizarCardConfronto(c)
+    // Card do admin — layout funcional e compacto
     // ─────────────────────────────────────────────────────────────
-    function renderizarCardConfronto(c, ehAdmin) {
-        const temTimes  = c.timeA && c.timeB;
+    function renderizarCardConfronto(c) {
+        const temTimes   = c.timeA && c.timeB;
         const finalizado = !!c.vencedor;
+        const jogados    = (c.jogos || []).length;
 
         const nomeA = c.timeA ? c.timeA.nome : "A definir";
         const nomeB = c.timeB ? c.timeB.nome : "A definir";
         const corA  = c.timeA ? c.timeA.cor  : "#444";
         const corB  = c.timeB ? c.timeB.cor  : "#444";
+        const vitA  = c.vitA ?? 0;
+        const vitB  = c.vitB ?? 0;
 
-        const vitA = c.vitA ?? 0;
-        const vitB = c.vitB ?? 0;
+        const vencedorA = !!(c.vencedor && c.timeA && c.vencedor.id === c.timeA.id);
+        const vencedorB = !!(c.vencedor && c.timeB && c.vencedor.id === c.timeB.id);
 
-        // Histórico de jogos da série
+        const fmt      = c.formato  || "MD3";
+        const maxJogos = c.maxJogos || 3;
+        const fmtLabel = MD_CONFIG[fmt]?.label || `Melhor de ${maxJogos}`;
+
         const historicoHTML = (c.jogos || []).map((j, i) => `
             <div class="po-historico-jogo">
                 <span class="po-historico-label">Jogo ${i + 1}</span>
@@ -324,41 +403,57 @@ export function initPlayoffs(ctx) {
             ? `<div class="po-campeao-badge">🏆 Campeão: ${c.vencedor.nome}</div>`
             : (finalizado ? `<div class="po-avanca-badge">✅ ${c.vencedor.nome} avança</div>` : "");
 
-        const btnRegistrar = (ehAdmin && temTimes && !finalizado)
-            ? `<button class="btn-po-registrar" data-confronto-id="${c.id}">+ Jogo ${(c.jogos?.length ?? 0) + 1}</button>`
+        const nextJogo  = jogados + 1;
+        const jogoLabel = maxJogos > 1 ? `Registrar Jogo ${nextJogo} de ${maxJogos}` : "Registrar Resultado";
+        const acoesHTML = (temTimes && !finalizado)
+            ? `<div class="po-card-acoes"><button class="btn-po-registrar" data-confronto-id="${c.id}">${jogoLabel}</button></div>`
             : "";
 
         return `
             <div class="po-card ${finalizado ? "po-card-finalizado" : ""} ${!temTimes ? "po-card-aguardando" : ""}">
-                <div class="po-card-times">
-                    <div class="po-time ${c.vencedor && c.timeA && c.vencedor.id === c.timeA.id ? "po-time-ganhou" : ""}">
-                        <span class="po-time-cor" style="background:${corA}"></span>
-                        <span class="po-time-nome">${nomeA}</span>
-                        <span class="po-serie-pts">${vitA}</span>
+                <div class="po-card-header">
+                    <span class="po-formato-badge">${fmt} · ${fmtLabel}</span>
+                </div>
+                <div class="po-card-confronto">
+                    <div class="po-team-info ${vencedorA ? "po-time-ganhou" : ""}">
+                        <div style="display:flex;align-items:center;gap:7px">
+                            <span class="po-time-barra" style="background:${corA}"></span>
+                            <span class="po-time-nome">${nomeA}</span>
+                        </div>
                     </div>
-                    <span class="po-serie-vs">×</span>
-                    <div class="po-time po-time-dir ${c.vencedor && c.timeB && c.vencedor.id === c.timeB.id ? "po-time-ganhou" : ""}">
-                        <span class="po-serie-pts">${vitB}</span>
-                        <span class="po-time-nome">${nomeB}</span>
-                        <span class="po-time-cor" style="background:${corB}"></span>
+                    <div class="po-serie-centro">
+                        <div class="po-serie-nums">
+                            <span class="po-serie-num ${vencedorA ? "ganhou" : ""}">${vitA}</span>
+                            <span class="po-serie-sep">×</span>
+                            <span class="po-serie-num ${vencedorB ? "ganhou" : ""}">${vitB}</span>
+                        </div>
+                        <span class="po-serie-label">série</span>
+                    </div>
+                    <div class="po-team-info po-team-info-dir ${vencedorB ? "po-time-ganhou" : ""}">
+                        <div style="display:flex;align-items:center;gap:7px;justify-content:flex-end">
+                            <span class="po-time-nome">${nomeB}</span>
+                            <span class="po-time-barra" style="background:${corB}"></span>
+                        </div>
                     </div>
                 </div>
                 ${historicoHTML ? `<div class="po-historico">${historicoHTML}</div>` : ""}
                 ${campeaoHTML}
-                ${btnRegistrar ? `<div class="po-card-acoes">${btnRegistrar}</div>` : ""}
+                ${acoesHTML}
             </div>
         `;
     }
 
     // ─────────────────────────────────────────────────────────────
     // abrirJogoPlayoff(confronto)
-    // Abre o mini-modal para registrar o placar de um jogo da série
     // ─────────────────────────────────────────────────────────────
     function abrirJogoPlayoff(confronto) {
         poState.jogoAtivo = confronto;
 
-        const numJogo = (confronto.jogos?.length ?? 0) + 1;
-        poJogoTitulo.textContent = `Jogo ${numJogo} da série`;
+        const numJogo  = (confronto.jogos?.length ?? 0) + 1;
+        const maxJogos = confronto.maxJogos || 3;
+        poJogoTitulo.textContent = maxJogos > 1
+            ? `Jogo ${numJogo} de ${maxJogos} (${confronto.formato || "MD3"})`
+            : `Jogo único (${confronto.formato || "MD1"})`;
 
         poJogoConfrontoEl.innerHTML = `
             <span class="confronto-time" style="color:${confronto.timeA.cor}">${confronto.timeA.nome}</span>
@@ -369,6 +464,7 @@ export function initPlayoffs(ctx) {
         poJogoLabelB.textContent = confronto.timeB.nome;
         poJogoInputA.value = "";
         poJogoInputB.value = "";
+        poQuartosLista.innerHTML = "";
 
         modalJogoPlayoff.classList.remove("oculto");
     }
@@ -386,54 +482,87 @@ export function initPlayoffs(ctx) {
             return;
         }
 
-        // Acumula o novo jogo na lista existente
-        const novosJogos = [...(confronto.jogos || []), { placarA, placarB }];
+        // Coletar quartos preenchidos
+        const quartosObj = {};
+        poQuartosLista.querySelectorAll(".quarto-row").forEach(row => {
+            const periodo = row.querySelector(".quarto-select").value;
+            const a = parseInt(row.querySelector(".quarto-input-a").value);
+            const b = parseInt(row.querySelector(".quarto-input-b").value);
+            if (!isNaN(a) && !isNaN(b)) quartosObj[periodo] = { A: a, B: b };
+        });
+        const novoJogo = { placarA, placarB };
+        if (Object.keys(quartosObj).length > 0) novoJogo.quartos = quartosObj;
 
-        // Recalcula vitórias na série
+        const novosJogos = [...(confronto.jogos || []), novoJogo];
+
         let vitA = 0, vitB = 0;
         novosJogos.forEach(j => {
             if (j.placarA > j.placarB) vitA++;
             else if (j.placarB > j.placarA) vitB++;
         });
 
-        // Melhor de 3: quem chegar a 2 vitórias vence a série
-        let vencedor = null;
-        if (vitA >= 2) vencedor = confronto.timeA;
-        else if (vitB >= 2) vencedor = confronto.timeB;
+        // Usa vitoriasPrecisas do documento (configurado por fase)
+        const precisa = confronto.vitoriasPrecisas ?? 2;
+        let vencedor  = null;
+        if (vitA >= precisa)      vencedor = confronto.timeA;
+        else if (vitB >= precisa) vencedor = confronto.timeB;
 
         try {
             const confrontoRef = doc(db, "ligas", poState.ligaId, "playoffs", confronto.id);
             await updateDoc(confrontoRef, { jogos: novosJogos, vitA, vitB, vencedor });
 
-            // Atualiza estado local
             const idx = poState.confrontos.findIndex(c => c.id === confronto.id);
             poState.confrontos[idx] = { ...confronto, jogos: novosJogos, vitA, vitB, vencedor };
 
-            // Se a série terminou, avança o vencedor para o próximo confronto
             if (vencedor && confronto.proximoId) {
-                const campo = confronto.proximoLado === "A" ? "timeA" : "timeB";
+                const campo      = confronto.proximoLado === "A" ? "timeA" : "timeB";
                 const proximoRef = doc(db, "ligas", poState.ligaId, "playoffs", confronto.proximoId);
                 await updateDoc(proximoRef, { [campo]: vencedor });
 
-                // Atualiza estado local do próximo confronto
                 const proximoIdx = poState.confrontos.findIndex(c => c.id === confronto.proximoId);
                 if (proximoIdx >= 0) {
-                    poState.confrontos[proximoIdx] = {
-                        ...poState.confrontos[proximoIdx],
-                        [campo]: vencedor
-                    };
+                    poState.confrontos[proximoIdx] = { ...poState.confrontos[proximoIdx], [campo]: vencedor };
                 }
             }
 
-            // Se foi a final: encerra a liga e registra o campeão
             if (vencedor && confronto.fase === "final") {
-                await updateDoc(doc(db, "ligas", poState.ligaId), {
-                    status:  "encerrado",
-                    campeao: vencedor
-                });
+                await updateDoc(doc(db, "ligas", poState.ligaId), { status: "encerrado", campeao: vencedor });
                 mostrarFeedback(`🏆 ${vencedor.nome} é o campeão!`, "sucesso");
             } else {
                 mostrarFeedback("Resultado salvo! 🏀", "sucesso");
+            }
+
+            // ── Criar votação de destaque para este jogo ─────────────
+            if (placarA !== placarB) {
+                try {
+                    const jogoVencedor = placarA > placarB ? confronto.timeA : confronto.timeB;
+                    const timeSnap = await getDoc(doc(db, "ligas", poState.ligaId, "times", jogoVencedor.id));
+                    const jogadoresList = timeSnap.exists()
+                        ? (timeSnap.data().jogadores || []).map(j => ({
+                            uid:     j.uid,
+                            nome:    j.nomeJogador || j.nome || "",
+                            posicao: j.posicao || ""
+                          }))
+                        : [];
+
+                    if (jogadoresList.length > 0) {
+                        await addDoc(collection(db, "ligas", poState.ligaId, "votacoes"), {
+                            confrontoId:   confronto.id,
+                            confrontoFase: confronto.fase,
+                            jogoNum:       novosJogos.length,
+                            ligaId:        poState.ligaId,
+                            ligaNome:      poState.ligaNome,
+                            timeVencedor:  jogoVencedor,
+                            jogadores:     jogadoresList,
+                            votos:         {},
+                            status:        "aberta",
+                            destaque:      null,
+                            criadoEm:      serverTimestamp(),
+                        });
+                    }
+                } catch (errVot) {
+                    console.warn("Não foi possível criar votação de destaque:", errVot);
+                }
             }
 
             fecharJogoPlayoff();
@@ -447,7 +576,7 @@ export function initPlayoffs(ctx) {
 
     // ─────────────────────────────────────────────────────────────
     // renderizarPlayoffsJogador()
-    // View de playoffs para o jogador — read-only, sem botões de edição
+    // View read-only para o jogador
     // ─────────────────────────────────────────────────────────────
     async function renderizarPlayoffsJogador() {
         ctx.getVjcPlayoffsEl().innerHTML = '<p class="vjc-carregando">Carregando playoffs...</p>';
@@ -473,9 +602,9 @@ export function initPlayoffs(ctx) {
             ordemFases.filter(f => porFase[f]).forEach(fase => {
                 const lista = porFase[fase].sort((a, b) => a.ordem - b.ordem);
                 html += `
-                    <div class="vjc-po-fase">
-                        <div class="vjc-po-fase-label">${nomesFase[fase]}</div>
-                        <div class="vjc-po-confrontos">
+                    <div class="po-fase">
+                        <div class="po-fase-label">${nomesFase[fase]}</div>
+                        <div class="po-confrontos">
                             ${lista.map(c => renderizarCardConfrontoJogador(c)).join("")}
                         </div>
                     </div>
@@ -490,53 +619,121 @@ export function initPlayoffs(ctx) {
         }
     }
 
-    // Card de confronto read-only para o jogador
+    // ─────────────────────────────────────────────────────────────
+    // renderizarCardConfrontoJogador(c)
+    // Card da view do jogador — design detalhado com status e histórico
+    // ─────────────────────────────────────────────────────────────
     function renderizarCardConfrontoJogador(c) {
         const temTimes   = c.timeA && c.timeB;
         const finalizado = !!c.vencedor;
+        const jogados    = (c.jogos || []).length;
 
         const nomeA = c.timeA ? c.timeA.nome : "A definir";
         const nomeB = c.timeB ? c.timeB.nome : "A definir";
-        const corA  = c.timeA ? c.timeA.cor  : "#333";
-        const corB  = c.timeB ? c.timeB.cor  : "#333";
+        const corA  = c.timeA ? c.timeA.cor  : "#444";
+        const corB  = c.timeB ? c.timeB.cor  : "#444";
         const vitA  = c.vitA ?? 0;
         const vitB  = c.vitB ?? 0;
 
-        const historicoHTML = (c.jogos || []).map((j, i) => `
-            <div class="vjc-po-jogo">
-                <span>Jogo ${i + 1}</span>
-                <span class="vjc-po-num ${j.placarA > j.placarB ? "vjc-po-venc" : ""}">${j.placarA}</span>
-                <span class="vjc-po-sep">×</span>
-                <span class="vjc-po-num ${j.placarB > j.placarA ? "vjc-po-venc" : ""}">${j.placarB}</span>
-            </div>
-        `).join("");
+        const vencedorA = !!(c.vencedor && c.timeA && c.vencedor.id === c.timeA.id);
+        const vencedorB = !!(c.vencedor && c.timeB && c.vencedor.id === c.timeB.id);
 
-        const badgeHTML = (c.fase === "final" && finalizado)
-            ? `<div class="vjc-po-campeao">🏆 Campeão: ${c.vencedor.nome}</div>`
-            : (finalizado ? `<div class="vjc-po-avanca">✅ ${c.vencedor.nome} avança</div>` : "");
+        const fmt      = c.formato  || "MD3";
+        const maxJogos = c.maxJogos || 3;
+        const fmtLabel = MD_CONFIG[fmt]?.label || `Melhor de ${maxJogos}`;
+
+        // Status badge
+        let statusCls, statusTxt;
+        if (finalizado) {
+            statusCls = "po-status-finalizado"; statusTxt = "Finalizado";
+        } else if (jogados === 0) {
+            statusCls = "po-status-aguardando"; statusTxt = temTimes ? "Aguardando início" : "Aguardando times";
+        } else {
+            statusCls = "po-status-emjogo";
+            statusTxt = maxJogos > 1 ? `Jogo ${jogados + 1} de ${maxJogos}` : "Em jogo";
+        }
+
+        const statusHTML   = `<span class="po-status ${statusCls}"><span class="po-status-dot"></span>${statusTxt}</span>`;
+        const formatoBadge = `<span class="po-formato-badge">${fmt} · ${fmtLabel}</span>`;
+
+        const historicoHTML = (c.jogos || []).map((j, i) => {
+            const quartosHtml = (() => {
+                if (!j.quartos) return "";
+                const periodos = ORDEM_QUARTOS_PO.filter(p => j.quartos[p] != null);
+                if (!periodos.length) return "";
+                const celulaLabel = p => `<div class="vjc-q-cell ${p === "OT" ? "vjc-q-label vjc-q-ot" : "vjc-q-label"}">${p}</div>`;
+                const celulaVal = (p, lado) => {
+                    const qA = j.quartos[p].A, qB = j.quartos[p].B;
+                    const v = lado === "A" ? qA : qB;
+                    const venceu = lado === "A" ? qA > qB : qB > qA;
+                    const cls = p === "OT" ? "vjc-q-val vjc-q-ot" : (venceu ? "vjc-q-val vjc-q-winner" : "vjc-q-val");
+                    return `<div class="vjc-q-cell ${cls}">${v}</div>`;
+                };
+                const labels = periodos.map(celulaLabel).join("");
+                return `<div class="vjc-quarters vjc-quarters-sm">
+                    <div class="vjc-q-time">
+                        <div class="vjc-q-header">${labels}</div>
+                        <div class="vjc-q-vals">${periodos.map(p => celulaVal(p, "A")).join("")}</div>
+                    </div>
+                    <div class="vjc-q-divider"></div>
+                    <div class="vjc-q-time vjc-q-time-right">
+                        <div class="vjc-q-header">${labels}</div>
+                        <div class="vjc-q-vals">${periodos.map(p => celulaVal(p, "B")).join("")}</div>
+                    </div>
+                </div>`;
+            })();
+            const destaqueHtml = j.destaque
+                ? `<div class="po-destaque-badge"><span class="icone-coroa"></span>Destaque: ${j.destaque.nome}</div>`
+                : "";
+            return `
+                <div class="po-historico-jogo">
+                    <span class="po-historico-label">Jogo ${i + 1}</span>
+                    <span class="po-historico-placar ${j.placarA > j.placarB ? "po-num-vencedor" : ""}">${j.placarA}</span>
+                    <span class="po-historico-sep">×</span>
+                    <span class="po-historico-placar ${j.placarB > j.placarA ? "po-num-vencedor" : ""}">${j.placarB}</span>
+                </div>
+                ${quartosHtml}
+                ${destaqueHtml}
+            `;
+        }).join("");
+
+        const campeaoHTML = (c.fase === "final" && finalizado)
+            ? `<div class="po-campeao-badge">🏆 Campeão: ${c.vencedor.nome}</div>`
+            : (finalizado ? `<div class="po-avanca-badge">✅ ${c.vencedor.nome} avança</div>` : "");
 
         return `
-            <div class="vjc-po-card ${finalizado ? "vjc-po-finalizado" : ""} ${!temTimes ? "vjc-po-aguardando" : ""}">
-                <div class="vjc-po-times">
-                    <div class="vjc-po-time ${c.vencedor && c.timeA && c.vencedor.id === c.timeA.id ? "vjc-po-ganhou" : ""}">
-                        <span class="vjc-po-barra" style="background:${corA}"></span>
-                        <span class="vjc-po-nome">${nomeA}</span>
-                        <span class="vjc-po-serie">${vitA}</span>
+            <div class="po-card ${finalizado ? "po-card-finalizado" : ""} ${!temTimes ? "po-card-aguardando" : ""}">
+                <div class="po-card-header">
+                    ${statusHTML}
+                    ${formatoBadge}
+                </div>
+                <div class="po-card-confronto">
+                    <div class="po-team-info ${vencedorA ? "po-time-ganhou" : ""}">
+                        <div style="display:flex;align-items:center;gap:7px">
+                            <span class="po-time-barra" style="background:${corA}"></span>
+                            <span class="po-time-nome">${nomeA}</span>
+                        </div>
                     </div>
-                    <span class="vjc-po-vs">×</span>
-                    <div class="vjc-po-time vjc-po-time-dir ${c.vencedor && c.timeB && c.vencedor.id === c.timeB.id ? "vjc-po-ganhou" : ""}">
-                        <span class="vjc-po-serie">${vitB}</span>
-                        <span class="vjc-po-nome">${nomeB}</span>
-                        <span class="vjc-po-barra" style="background:${corB}"></span>
+                    <div class="po-serie-centro">
+                        <div class="po-serie-nums">
+                            <span class="po-serie-num ${vencedorA ? "ganhou" : ""}">${vitA}</span>
+                            <span class="po-serie-sep">×</span>
+                            <span class="po-serie-num ${vencedorB ? "ganhou" : ""}">${vitB}</span>
+                        </div>
+                        <span class="po-serie-label">série</span>
+                    </div>
+                    <div class="po-team-info po-team-info-dir ${vencedorB ? "po-time-ganhou" : ""}">
+                        <div style="display:flex;align-items:center;gap:7px;justify-content:flex-end">
+                            <span class="po-time-nome">${nomeB}</span>
+                            <span class="po-time-barra" style="background:${corB}"></span>
+                        </div>
                     </div>
                 </div>
-                ${historicoHTML ? `<div class="vjc-po-historico">${historicoHTML}</div>` : ""}
-                ${badgeHTML}
+                ${historicoHTML ? `<div class="po-historico">${historicoHTML}</div>` : ""}
+                ${campeaoHTML}
             </div>
         `;
     }
 
-
-    // Funcoes publicas que liga.js precisa chamar externamente
     return { abrirModalIniciarPlayoffs, abrirModalPlayoffs, renderizarPlayoffsJogador };
 }

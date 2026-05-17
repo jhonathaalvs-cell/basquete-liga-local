@@ -9,8 +9,6 @@ import { auth } from "./firebase-config.js";
 
 import {
     signInWithEmailAndPassword,   // faz login com e-mail + senha
-    GoogleAuthProvider,           // provedor Google
-    signInWithPopup,              // abre popup para login social
     setPersistence,               // define quanto tempo a sessão dura
     browserLocalPersistence,      // sessão permanece mesmo fechando o browser
     browserSessionPersistence     // sessão encerra ao fechar a aba
@@ -96,28 +94,6 @@ async function fazerLogin() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Login com Google
-// ─────────────────────────────────────────────────────────────
-async function loginGoogle() {
-    try {
-        // GoogleAuthProvider é o "adaptador" do Google para o Firebase
-        const provedor    = new GoogleAuthProvider();
-
-        // signInWithPopup abre uma janela pop-up do Google para o usuário escolher a conta
-        const credencial  = await signInWithPopup(auth, provedor);
-
-        console.log("Login Google:", credencial.user.email);
-        window.location.href = "hub.html";
-
-    } catch (erro) {
-        // Ignora se o usuário apenas fechou o popup (auth/popup-closed-by-user)
-        if (erro.code !== "auth/popup-closed-by-user") {
-            exibirErro(traduzirErro(erro.code));
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
 // "Esqueceu sua senha?" — alerta informativo
 // ─────────────────────────────────────────────────────────────
 function esqueceuSenha() {
@@ -130,7 +106,6 @@ function esqueceuSenha() {
 // estar pronto — não precisamos de DOMContentLoaded.
 // ─────────────────────────────────────────────────────────────
 document.getElementById("btn-entrar").addEventListener("click", fazerLogin);
-document.getElementById("btn-google").addEventListener("click", loginGoogle);
 document.getElementById("btn-esqueceu").addEventListener("click", esqueceuSenha);
 
 document.getElementById("btn-toggle-senha").addEventListener("click", () => {

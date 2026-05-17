@@ -1261,6 +1261,7 @@ const calClassEl       = document.getElementById("cal-classificacao");
 const calTimesEl       = document.getElementById("cal-times");
 const calTabs          = document.querySelectorAll(".cal-tab");
 const calTabAdmin      = document.querySelector(".cal-tab-admin");
+const calMvpEl         = document.getElementById("cal-mvp");
 
 // Modal de placar
 const modalPlacar      = document.getElementById("modal-placar");
@@ -1286,6 +1287,7 @@ calTabs.forEach(tab => {
         calJogosEl.classList.add("oculto");
         calClassEl.classList.add("oculto");
         calTimesEl.classList.add("oculto");
+        calMvpEl.classList.add("oculto");
 
         if (tab.dataset.tab === "jogos") {
             calJogosEl.classList.remove("oculto");
@@ -1295,6 +1297,9 @@ calTabs.forEach(tab => {
         } else if (tab.dataset.tab === "times") {
             calTimesEl.classList.remove("oculto");
             carregarTimesParaEditar();
+        } else if (tab.dataset.tab === "mvp") {
+            calMvpEl.classList.remove("oculto");
+            carregarMVP(calState.ligaId, calMvpEl);
         }
     });
 });
@@ -1312,6 +1317,7 @@ async function abrirCalendario(ligaId, ligaNome, abaInicial = "jogos") {
     calJogosEl.innerHTML    = '<p class="draft-carregando">Carregando jogos...</p>';
     calClassEl.innerHTML    = '<p class="draft-carregando">Calculando...</p>';
     calTimesEl.innerHTML    = '<p class="draft-carregando">Carregando times...</p>';
+    calMvpEl.innerHTML      = '<p class="draft-carregando">Calculando corrida de MVP...</p>';
 
     // Mostra/oculta a aba de times conforme o role
     if (calState.ehAdmin) {
@@ -1325,6 +1331,7 @@ async function abrirCalendario(ligaId, ligaNome, abaInicial = "jogos") {
     calJogosEl.classList.toggle("oculto",   abaInicial !== "jogos");
     calClassEl.classList.toggle("oculto",   abaInicial !== "classificacao");
     calTimesEl.classList.toggle("oculto",   abaInicial !== "times");
+    calMvpEl.classList.toggle("oculto",     abaInicial !== "mvp");
 
     modalCalendario.classList.remove("oculto");
     document.body.style.overflow = "hidden";
@@ -1443,6 +1450,10 @@ function renderizarJogos() {
                 ? `<div class="jogo-obs">💬 ${jogo.obs}</div>`
                 : "";
 
+            const destaqueHTML = finalizado && jogo.destaque
+                ? `<div class="jogo-destaque">${jogo.destaque.nome}${jogo.destaque.posicao ? ` (${jogo.destaque.posicao})` : ""}</div>`
+                : "";
+
             const btnsAdmin = calState.ehAdmin
                 ? `<div class="jogo-btns-admin">
                        ${!finalizado && !cancelado ? `<button class="btn-registrar-placar" data-jogo-id="${jogo.id}">✏️ Placar</button>` : ""}
@@ -1467,6 +1478,7 @@ function renderizarJogos() {
                     </div>
                     ${dataHora}
                     ${obs}
+                    ${destaqueHTML}
                     ${btnsAdmin}
                 </div>
             `;
@@ -1677,7 +1689,7 @@ function fecharModalPlacar() {
 }
 
 btnSalvarPlacar.addEventListener("click", async () => {
-    const jogo    = calState.jogoAtivo;
+    const jogo = calState.jogoAtivo;
     if (!jogo) return;
 
     const pA = parseInt(inputPlacarA.value);
@@ -1689,7 +1701,7 @@ btnSalvarPlacar.addEventListener("click", async () => {
     }
 
     try {
-        btnSalvarPlacar.disabled  = true;
+        btnSalvarPlacar.disabled    = true;
         btnSalvarPlacar.textContent = "Salvando...";
 
         // Coletar quartos preenchidos
@@ -1703,10 +1715,10 @@ btnSalvarPlacar.addEventListener("click", async () => {
         const temQuartos = Object.keys(quartosObj).length > 0;
 
         await updateDoc(doc(db, "ligas", calState.ligaId, "jogos", jogo.id), {
-            placarA:  pA,
-            placarB:  pB,
-            status:   "finalizado",
-            quartos:  temQuartos ? quartosObj : deleteField()
+            placarA: pA,
+            placarB: pB,
+            status:  "finalizado",
+            quartos: temQuartos ? quartosObj : deleteField()
         });
 
         // Atualiza localmente para não precisar recarregar do Firebase
@@ -1723,190 +1735,67 @@ btnSalvarPlacar.addEventListener("click", async () => {
         renderizarJogos();
         mostrarFeedback("Resultado registrado! ✅", "sucesso");
 
-        // Verifica se todos os jogos da rodada foram finalizados e gera post no Hub
-        await tentarGerarPostRodada(calState.ligaId, calState.ligaNome, jogoLocal.rodada);
+        // Cria votação de destaque no Hub (jogo não-empatado)
+        if (pA !== pB) {
+            criarVotacaoRodada(jogo, pA, pB).catch(e =>
+                console.warn("Não foi possível criar votação:", e)
+            );
+        }
 
     } catch (erro) {
         console.error("Erro ao salvar placar:", erro);
         mostrarFeedback("Erro ao salvar resultado.", "erro");
     } finally {
-        btnSalvarPlacar.disabled = false;
+        btnSalvarPlacar.disabled    = false;
         btnSalvarPlacar.textContent = "Salvar Resultado ✅";
     }
 });
 
 // ─────────────────────────────────────────────────────────────
-// POST AUTOMÁTICO DO HUB
-// Verifica se todos os jogos de uma rodada foram finalizados.
-// Se sim, gera um post narrativo e salva em posts/{id} no Firestore.
+// criarVotacaoRodada(jogo, pA, pB)
+// Cria votação de destaque no Hub após salvar placar de rodada
 // ─────────────────────────────────────────────────────────────
+async function criarVotacaoRodada(jogo, pA, pB) {
+    const timeVencedor = pA > pB ? jogo.timeA : jogo.timeB;
+    const timePerdedor = pA > pB ? jogo.timeB : jogo.timeA;
 
-async function tentarGerarPostRodada(ligaId, ligaNome, rodada) {
-    try {
-        // Pega todos os jogos da mesma rodada
-        const jogosDaRodada = calState.jogos.filter(j => +j.rodada === +rodada);
+    const [snapV, snapP] = await Promise.all([
+        getDoc(doc(db, "ligas", calState.ligaId, "times", timeVencedor.id)),
+        getDoc(doc(db, "ligas", calState.ligaId, "times", timePerdedor.id))
+    ]);
 
-        // Só gera o post se TODOS os jogos da rodada estiverem finalizados
-        // (ignora cancelados — eles não bloqueiam)
-        const pendentes = jogosDaRodada.filter(j => j.status !== "finalizado" && j.status !== "cancelado");
-        if (pendentes.length > 0) return;
+    const toJogadores = (snap, time) => snap.exists()
+        ? (snap.data().jogadores || []).map(j => ({
+            uid:      j.uid,
+            nome:     j.nomeJogador || j.nome || "",
+            posicao:  j.posicao || "",
+            timeNome: time.nome,
+            timeCor:  time.cor
+          }))
+        : [];
 
-        // Checa se já existe um post para essa rodada/liga para não duplicar
-        const postsSnap = await getDocs(
-            query(collection(db, "posts"), orderBy("criadoEm", "desc"))
-        );
-        const jaExiste = postsSnap.docs.some(d => {
-            const p = d.data();
-            return p.ligaId === ligaId && +p.rodada === +rodada;
-        });
-        if (jaExiste) return;
+    const jogadoresList = [
+        ...toJogadores(snapV, timeVencedor),
+        ...toJogadores(snapP, timePerdedor)
+    ];
 
-        // Monta a classificação atual para o post
-        const classificacao = calcularClassificacaoParaPost(calState.jogos);
+    if (jogadoresList.length === 0) return;
 
-        // Gera o texto do post
-        const texto = gerarTextoPost(ligaNome, rodada, jogosDaRodada, classificacao);
-
-        // Salva no Firestore — expiraEm define a data de auto-exclusão (14 dias)
-        const expiraEm = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-        await addDoc(collection(db, "posts"), {
-            ligaId,
-            ligaNome,
-            rodada:    +rodada,
-            texto,
-            criadoEm: serverTimestamp(),
-            expiraEm  // data-limite para o Hub apagar automaticamente
-        });
-
-    } catch (e) {
-        console.error("Erro ao gerar post da rodada:", e);
-        // Não exibe erro para o admin — o placar já foi salvo com sucesso
-    }
+    await addDoc(collection(db, "ligas", calState.ligaId, "votacoes"), {
+        jogoId:        jogo.id,
+        confrontoFase: "regular",
+        jogoNum:       jogo.rodada,
+        ligaId:        calState.ligaId,
+        ligaNome:      calState.ligaNome,
+        timeVencedor,
+        jogadores:     jogadoresList,
+        votos:         {},
+        status:        "aberta",
+        destaque:      null,
+        criadoEm:      serverTimestamp()
+    });
 }
 
-// ─── Calcula classificação simplificada para usar no post ────
-function calcularClassificacaoParaPost(jogos) {
-    const times = {};
-    jogos.forEach(jogo => {
-        [jogo.timeA, jogo.timeB].forEach(t => {
-            if (t && !times[t.id]) times[t.id] = { nome: t.nome, v: 0, d: 0, pts: 0 };
-        });
-    });
-    jogos.filter(j => j.status === "finalizado").forEach(jogo => {
-        const a = times[jogo.timeA?.id];
-        const b = times[jogo.timeB?.id];
-        if (!a || !b) return;
-        if (jogo.placarA > jogo.placarB) { a.v++; a.pts += 3; b.d++; }
-        else if (jogo.placarB > jogo.placarA) { b.v++; b.pts += 3; a.d++; }
-        else { a.v++; a.pts++; b.v++; b.pts++; }
-    });
-    return Object.values(times).sort((x, y) => y.pts - x.pts || y.v - x.v);
-}
-
-// ─── Gera o texto narrativo completo do post ─────────────────
-function gerarTextoPost(ligaNome, rodada, jogos, classificacao) {
-    const escolher = arr => arr[Math.floor(Math.random() * arr.length)];
-
-    // ── Abertura
-    const aberturas = [
-        `Mais uma rodada acabou e as quadras não mentem!`,
-        `A bola rolou, o suor escorreu e os resultados estão aqui!`,
-        `Rodada encerrada! Veja o que aconteceu nas quadras hoje.`,
-        `Foi jogo! Confira tudo o que rolou nessa rodada.`
-    ];
-
-    // ── Frases por tipo de jogo
-    const frasesEquilibrado = [
-        (v, p, pl) => `Que loucura! ${v} e ${p} foram até o limite — ${pl}. Obra de arte.`,
-        (v, p, pl) => `Jogo de infarto! ${v} garantiu a vitória nos segundos finais. ${pl}.`,
-        (v, p, pl) => `${v} escapou por pouco! ${pl}. O ${p} quase virou isso.`
-    ];
-    const frasesLavada = [
-        (v, p, pl) => `Sem piedade! ${v} atropelou o ${p} por ${pl}. Que lavada.`,
-        (v, p, pl) => `${v} foi outra categoria hoje. ${p} não teve resposta. ${pl}.`,
-        (v, p, pl) => `Jogo resolvido cedo. ${v} dominou do começo ao fim — ${pl}.`
-    ];
-    const frasesNormal = [
-        (v, p, pl) => `${v} venceu o ${p} por ${pl}.`,
-        (v, p, pl) => `Vitória de ${v} sobre ${p}. Placar: ${pl}.`,
-        (v, p, pl) => `${v} garantiu os três pontos diante do ${p}. ${pl}.`
-    ];
-
-    // ── Monta linha de cada jogo
-    const jogosFin = jogos.filter(j => j.status === "finalizado");
-    const linhasJogos = jogosFin.map(j => {
-        const nA  = j.timeA?.nome || "Time A";
-        const nB  = j.timeB?.nome || "Time B";
-        const pA  = j.placarA;
-        const pB  = j.placarB;
-        const vencedor = pA >= pB ? nA : nB;
-        const perdedor = pA >= pB ? nB : nA;
-        const margem   = Math.abs(pA - pB);
-        const placar   = `${Math.max(pA, pB)} x ${Math.min(pA, pB)}`;
-
-        let frase;
-        if (margem <= 5)       frase = escolher(frasesEquilibrado)(vencedor, perdedor, placar);
-        else if (margem >= 20) frase = escolher(frasesLavada)(vencedor, perdedor, placar);
-        else                   frase = escolher(frasesNormal)(vencedor, perdedor, placar);
-
-        return `${nA} ${pA} x ${pB} ${nB} — ${frase}`;
-    });
-
-    // ── Tabela
-    const medalhas = ["1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°"];
-    const linhasTabela = classificacao.map((t, i) =>
-        `${medalhas[i] || `${i + 1}°`} ${t.nome} — ${t.v}V ${t.d}D`
-    );
-
-    // ── Lanternas (2 últimos)
-    const lanternas = classificacao.slice(-2).map(t => t.nome);
-    const frasesLanterna = [
-        `${lanternas[0]} e ${lanternas[1]} ainda estão buscando o ritmo. A temporada é longa!`,
-        `Difícil pra ${lanternas[0]} e ${lanternas[1]} até agora, mas nada que uma sequência boa não resolva.`,
-        `Rodada ${rodada} e ${lanternas[0]} e ${lanternas[1]} ainda em busca da virada. O campeonato ainda não acabou!`,
-        `${lanternas[0]} e ${lanternas[1]} na parte de baixo da tabela por enquanto — mas falta muito jogo ainda.`
-    ];
-
-    // ── Fechamento
-    const lider = classificacao[0]?.nome || "";
-    const liderInvicto = classificacao[0]?.d === 0 && classificacao[0]?.v > 0;
-    const frasesLiderInvicto = [
-        `${lider} segue invicto no topo. Alguém vai parar esse time?`,
-        `${lider} não sabe o que é perder nessa liga. Por enquanto...`
-    ];
-    const frasesDisputado = [
-        `Topo da tabela pegando fogo — qualquer time pode virar líder na próxima rodada!`,
-        `Nada decidido ainda. Vai ser uma luta até o fim!`
-    ];
-
-    const fechamento = liderInvicto
-        ? escolher(frasesLiderInvicto)
-        : escolher(frasesDisputado);
-
-    // ── Monta o texto final
-    const separador = "─────────────────────────";
-    return [
-        `Rodada ${rodada} — ${ligaNome}`,
-        ``,
-        escolher(aberturas),
-        ``,
-        separador,
-        `Resultados`,
-        separador,
-        ...linhasJogos,
-        ``,
-        separador,
-        `Como está a tabela`,
-        separador,
-        ...linhasTabela,
-        ``,
-        lanternas.length >= 2 ? escolher(frasesLanterna) : "",
-        ``,
-        fechamento
-    ].filter(l => l !== undefined).join("\n");
-}
-
-// ─────────────────────────────────────────────────────────────
 // ABA TIMES — editar nomes, mover jogadores entre times
 // ─────────────────────────────────────────────────────────────
 
@@ -2283,6 +2172,7 @@ const vjcJogosEl      = document.getElementById("vjc-jogos");
 const vjcTimesEl      = document.getElementById("vjc-times");
 const vjcClassEl      = document.getElementById("vjc-classificacao");
 const vjcPlayoffsEl   = document.getElementById("vjc-playoffs");
+const vjcMvpEl        = document.getElementById("vjc-mvp");
 const vjcTabs         = document.querySelectorAll(".vjc-tab");
 const vjcTabPlayoffs  = document.querySelector(".vjc-tab-playoffs");
 
@@ -2302,6 +2192,7 @@ vjcTabs.forEach(tab => {
         vjcTimesEl.classList.add("oculto");
         vjcClassEl.classList.add("oculto");
         vjcPlayoffsEl.classList.add("oculto");
+        vjcMvpEl.classList.add("oculto");
 
         if (tab.dataset.vjcTab === "jogos") {
             vjcJogosEl.classList.remove("oculto");
@@ -2314,6 +2205,9 @@ vjcTabs.forEach(tab => {
         } else if (tab.dataset.vjcTab === "playoffs") {
             vjcPlayoffsEl.classList.remove("oculto");
             renderizarPlayoffsJogador();
+        } else if (tab.dataset.vjcTab === "mvp") {
+            vjcMvpEl.classList.remove("oculto");
+            carregarMVP(vjcState.ligaId, vjcMvpEl);
         }
     });
 });
@@ -2344,6 +2238,7 @@ async function abrirViewJogador(ligaId, ligaNome, ligaStatus = "ativo") {
     vjcTimesEl.innerHTML    = '<p class="vjc-carregando">Carregando times...</p>';
     vjcClassEl.innerHTML    = '<p class="vjc-carregando">Calculando...</p>';
     vjcPlayoffsEl.innerHTML = '<p class="vjc-carregando">Carregando playoffs...</p>';
+    vjcMvpEl.innerHTML      = '<p class="vjc-carregando">Calculando corrida de MVP...</p>';
 
     // Na fase de nomes, a aba padrão é Times (para o jogador nomear seu time)
     const abaInicial = ligaStatus === "nomes_times" ? "times" : "jogos";
@@ -2354,6 +2249,7 @@ async function abrirViewJogador(ligaId, ligaNome, ligaStatus = "ativo") {
     vjcTimesEl.classList.toggle("oculto",   abaInicial !== "times");
     vjcClassEl.classList.add("oculto");
     vjcPlayoffsEl.classList.add("oculto");
+    vjcMvpEl.classList.add("oculto");
 
     // Transição: esconde painel, mostra a view
     painelJogador.classList.add("oculto");
@@ -2487,6 +2383,11 @@ function renderizarJogosJogador() {
             // Observação
             const obs = jogo.obs ? `<div class="vjc-card-obs">💬 ${jogo.obs}</div>` : "";
 
+            // Destaque da partida (após votação encerrada)
+            const destaqueHtml = finalizado && jogo.destaque
+                ? `<div class="jogo-destaque">${jogo.destaque.nome}${jogo.destaque.posicao ? ` (${jogo.destaque.posicao})` : ""}</div>`
+                : "";
+
             // Badge de status com dot
             const si = statusInfo[jogo.status] || { label: jogo.status, cls: "" };
             const badge = `<span class="vjc-card-status ${si.cls}"><span class="vjc-status-dot"></span>${si.label}</span>`;
@@ -2522,7 +2423,7 @@ function renderizarJogosJogador() {
                         <div class="vjc-time ${vencedorA ? "vjc-vencedor" : ""}">
                             <span class="vjc-time-barra" style="background: ${jogo.timeA.cor}"></span>
                             <div class="vjc-team-info">
-                                <span class="vjc-time-nome">${vencedorA ? '<span class="vjc-coroa">👑</span>' : ""}${jogo.timeA.nome}</span>
+                                <span class="vjc-time-nome">${vencedorA ? '<span class="icone-coroa vjc-coroa"></span>' : ""}${jogo.timeA.nome}</span>
                                 ${recA ? `<span class="vjc-time-record">${recA}</span>` : ""}
                             </div>
                         </div>
@@ -2538,7 +2439,7 @@ function renderizarJogosJogador() {
                         </div>
                         <div class="vjc-time vjc-time-direita ${vencedorB ? "vjc-vencedor" : ""}">
                             <div class="vjc-team-info">
-                                <span class="vjc-time-nome">${vencedorB ? '<span class="vjc-coroa">👑</span>' : ""}${jogo.timeB.nome}</span>
+                                <span class="vjc-time-nome">${vencedorB ? '<span class="icone-coroa vjc-coroa"></span>' : ""}${jogo.timeB.nome}</span>
                                 ${recB ? `<span class="vjc-time-record">${recB}</span>` : ""}
                             </div>
                             <span class="vjc-time-barra" style="background: ${jogo.timeB.cor}"></span>
@@ -2554,6 +2455,7 @@ function renderizarJogosJogador() {
                     ${corpo}
                     ${quartosHtml}
                     ${obs}
+                    ${destaqueHtml}
                 </div>
             `;
         }).join("");
@@ -2852,6 +2754,7 @@ function renderizarClassificacaoJogador() {
                 <div class="vjc-class-td">${t.j}</div>
                 <div class="vjc-class-td wins">${t.v}</div>
                 <div class="vjc-class-td loss">${t.d}</div>
+                <div class="vjc-class-td">${t.cestas - t.cestasSofridas >= 0 ? "+" : ""}${t.cestas - t.cestasSofridas}</div>
                 <div class="vjc-class-td"><div class="vjc-form-strip">${dotsHTML}</div></div>
                 <div class="vjc-class-pts-cell">
                     <span class="vjc-class-pts-val">${t.pts}</span>
@@ -2886,6 +2789,7 @@ function renderizarClassificacaoJogador() {
                 <div class="vjc-class-th">J</div>
                 <div class="vjc-class-th">V</div>
                 <div class="vjc-class-th">D</div>
+                <div class="vjc-class-th" title="Saldo de Pontos">SP</div>
                 <div class="vjc-class-th">Forma</div>
                 <div class="vjc-class-th">Pts</div>
             </div>
@@ -2918,7 +2822,7 @@ let abrirModalIniciarPlayoffs, abrirModalPlayoffs, renderizarPlayoffsJogador;
     abrirModalPlayoffs,
     renderizarPlayoffsJogador
 } = initPlayoffs({
-    db, collection, doc, getDocs, updateDoc, writeBatch,
+    db, collection, doc, getDoc, getDocs, addDoc, updateDoc, writeBatch,
     serverTimestamp, query, orderBy,
     mostrarFeedback,
     carregarLigasAdmin,
@@ -2968,7 +2872,7 @@ async function excluirLiga(ligaId, ligaNome) {
 
     try {
         // Exclui cada subcoleção manualmente (obrigatório no Firestore via SDK)
-        const subcolecoes = ["inscricoes", "times", "jogos"];
+        const subcolecoes = ["inscricoes", "times", "jogos", "playoffs", "votacoes"];
 
         for (const subNome of subcolecoes) {
             // Busca todos os documentos da subcoleção
@@ -2991,6 +2895,131 @@ async function excluirLiga(ligaId, ligaNome) {
         console.error("Erro ao excluir liga:", erro);
         mostrarFeedback("Erro ao excluir liga.", "erro");
     }
+}
+
+// ════════════════════════════════════════════════════════════════
+// CORRIDA DE MVP
+// Agrega destaques da fase regular + playoffs e renderiza ranking
+// ════════════════════════════════════════════════════════════════
+
+async function carregarMVP(ligaId, container) {
+    container.innerHTML = '<p class="draft-carregando">Calculando corrida de MVP...</p>';
+    try {
+        const [jogosSnap, playoffsSnap] = await Promise.all([
+            getDocs(collection(db, "ligas", ligaId, "jogos")),
+            getDocs(collection(db, "ligas", ligaId, "playoffs"))
+        ]);
+
+        // mapa uid → { nome, posicao, timeNome, timeCor, destaques }
+        const mapa = {};
+
+        const registrar = (destaque, timeNome, timeCor) => {
+            if (!destaque?.uid) return;
+            if (!mapa[destaque.uid]) {
+                mapa[destaque.uid] = {
+                    uid:      destaque.uid,
+                    nome:     destaque.nome || "Jogador",
+                    posicao:  destaque.posicao || "",
+                    timeNome: destaque.timeNome || timeNome || "",
+                    timeCor:  timeCor || "#555",
+                    destaques: 0
+                };
+            }
+            mapa[destaque.uid].destaques++;
+        };
+
+        // Fase regular: jogos/{jogoId}.destaque
+        jogosSnap.docs.forEach(d => {
+            const jogo = d.data();
+            if (jogo.status === "finalizado" && jogo.destaque?.uid) {
+                const corTime = jogo.timeA?.id === jogo.destaque?.timeId
+                    ? jogo.timeA?.cor : jogo.timeB?.cor;
+                registrar(jogo.destaque, jogo.destaque.timeNome, corTime);
+            }
+        });
+
+        // Playoffs: playoffs/{confrontoId}.jogos[i].destaque
+        playoffsSnap.docs.forEach(d => {
+            const confronto = d.data();
+            const subJogos = confronto.jogos || [];
+            subJogos.forEach(j => {
+                if (j.destaque?.uid) {
+                    registrar(j.destaque, j.destaque.timeNome, null);
+                }
+            });
+        });
+
+        // Busca cores dos times para quem veio dos playoffs (cor pode estar null)
+        const timesSnap = await getDocs(collection(db, "ligas", ligaId, "times"));
+        const timesCorMap = {};
+        timesSnap.docs.forEach(d => { timesCorMap[d.id] = d.data().cor; });
+
+        // Tenta preencher cor faltante via inscricoes
+        const inscSnap = await getDocs(collection(db, "ligas", ligaId, "inscricoes"));
+        const inscMap = {};
+        inscSnap.docs.forEach(d => { inscMap[d.id] = d.data().timeId; });
+
+        Object.values(mapa).forEach(p => {
+            if (!p.timeCor || p.timeCor === "#555") {
+                const timeId = inscMap[p.uid];
+                if (timeId && timesCorMap[timeId]) p.timeCor = timesCorMap[timeId];
+            }
+        });
+
+        const ranking = Object.values(mapa)
+            .filter(p => p.destaques > 0)
+            .sort((a, b) => b.destaques - a.destaques || a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
+
+        renderizarMVP(container, ranking);
+    } catch (erro) {
+        console.error("Erro ao carregar MVP:", erro);
+        container.innerHTML = '<p class="draft-carregando">Erro ao carregar corrida de MVP.</p>';
+    }
+}
+
+function renderizarMVP(container, ranking) {
+    if (ranking.length === 0) {
+        container.innerHTML = '<p class="mvp-vazio">Nenhum destaque registrado ainda.</p>';
+        return;
+    }
+
+    const maxDestaques = ranking[0].destaques;
+
+    const itensHTML = ranking.map((p, i) => {
+        const pos       = i + 1;
+        const barWidth  = maxDestaques > 0 ? Math.round((p.destaques / maxDestaques) * 100) : 0;
+        const posClass  = pos === 1 ? "mvp-pos-1" : pos === 2 ? "mvp-pos-2" : pos === 3 ? "mvp-pos-3" : "mvp-pos-n";
+        const isLider   = pos === 1;
+        const posicaoHtml = p.posicao ? `<span class="mvp-jogador-pos">${p.posicao}</span>` : "";
+
+        return `
+            <div class="mvp-item ${isLider ? "mvp-item-lider" : ""}">
+                <div class="mvp-rank ${posClass}">${pos}</div>
+                <div class="mvp-info">
+                    <div class="mvp-jogador-nome">${p.nome}${posicaoHtml}</div>
+                    <div class="mvp-time">
+                        <span class="mvp-time-dot" style="background:${p.timeCor}"></span>
+                        ${p.timeNome}
+                    </div>
+                    <div class="mvp-bar-wrap">
+                        <div class="mvp-bar-fill" style="width:${barWidth}%;background:${p.timeCor}"></div>
+                    </div>
+                </div>
+                <div class="mvp-destaques-count">
+                    <span class="mvp-count-val">${p.destaques}</span>
+                    <span class="mvp-count-label">destaque${p.destaques !== 1 ? "s" : ""}</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    container.innerHTML = `
+        <div class="mvp-header">
+            <span class="icone-coroa" style="width:14px;height:11px"></span>
+            Corrida de MVP
+        </div>
+        <div class="mvp-lista">${itensHTML}</div>
+    `;
 }
 
 // ════════════════════════════════════════════════════════════════

@@ -324,10 +324,11 @@
 
             <div class="modal-corpo">
 
-                <!-- Abas: Jogos / Classificação / Times (admin) -->
+                <!-- Abas: Jogos / Classificação / MVP / Times (admin) -->
                 <div class="cal-tabs" role="tablist">
                     <button class="cal-tab ativo" data-tab="jogos" role="tab">🗓 Jogos</button>
                     <button class="cal-tab" data-tab="classificacao" role="tab">🏆 Classificação</button>
+                    <button class="cal-tab" data-tab="mvp" role="tab"><span class="icone-coroa" style="width:12px;height:9px;margin-right:5px"></span>MVP</button>
                     <button class="cal-tab cal-tab-admin oculto" data-tab="times" role="tab">⚙️ Times</button>
                 </div>
 
@@ -339,6 +340,11 @@
                 <!-- Aba Classificação: tabela de pontos -->
                 <div id="cal-classificacao" class="cal-secao oculto">
                     <p class="draft-carregando">Calculando classificação...</p>
+                </div>
+
+                <!-- Aba MVP: corrida de destaque -->
+                <div id="cal-mvp" class="cal-secao oculto">
+                    <p class="draft-carregando">Calculando corrida de MVP...</p>
                 </div>
 
                 <!-- Aba Times: editar nomes e jogadores (só admin) -->
@@ -463,6 +469,7 @@
             <button class="vjc-tab" data-vjc-tab="times" role="tab">🏀 Times</button>
             <button class="vjc-tab" data-vjc-tab="classificacao" role="tab">📊 Classificação</button>
             <button class="vjc-tab vjc-tab-playoffs oculto" data-vjc-tab="playoffs" role="tab">⚡ Playoffs</button>
+            <button class="vjc-tab" data-vjc-tab="mvp" role="tab"><span class="icone-coroa" style="width:12px;height:9px;margin-right:5px"></span>MVP</button>
         </div>
 
         <!-- Aba: Jogos (carregado pelo JS) -->
@@ -483,6 +490,11 @@
         <!-- Aba: Playoffs (carregado pelo JS, só aparece quando liga está em playoffs) -->
         <div id="vjc-playoffs" class="vjc-secao oculto">
             <p class="vjc-carregando">Carregando playoffs...</p>
+        </div>
+
+        <!-- Aba: MVP (corrida de destaque — todos os jogadores rankeados por destaques) -->
+        <div id="vjc-mvp" class="vjc-secao oculto">
+            <p class="vjc-carregando">Calculando corrida de MVP...</p>
         </div>
 
     </section>
@@ -512,6 +524,9 @@
                     <option value="4" selected>4 times — Semifinais + Final</option>
                     <option value="8">8 times — Quartas de Final + Semis + Final</option>
                 </select>
+
+                <!-- Selects de formato MD gerados dinamicamente pelo JS -->
+                <div id="po-formatos-fases"></div>
 
                 <div class="form-acoes" style="margin-top:20px">
                     <button id="btn-confirmar-playoffs" class="btn-primario">Gerar Chaveamento ⚡</button>
@@ -569,6 +584,14 @@
                         <input id="po-jogo-placar-b" class="form-input form-input-pequeno placar-numero"
                                type="number" min="0" max="999" placeholder="0">
                     </div>
+                </div>
+
+                <div class="quartos-secao">
+                    <div class="quartos-secao-header">
+                        <span class="quartos-secao-label">Quartos</span>
+                        <button type="button" id="po-btn-add-quarto" class="btn-add-quarto">+ Quarto</button>
+                    </div>
+                    <div id="po-quartos-lista" class="quartos-lista"></div>
                 </div>
 
                 <button id="btn-salvar-jogo-playoff" class="btn-primario" style="margin-top:16px">

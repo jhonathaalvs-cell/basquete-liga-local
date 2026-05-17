@@ -14,7 +14,7 @@
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, updateProfile, signOut }
     from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
-import { doc, getDoc, setDoc, deleteField }
+import { doc, getDoc, setDoc, updateDoc, deleteField, getDocs, collection }
     from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 // ── Referências aos elementos da página ──────────────────────
@@ -180,6 +180,20 @@ async function salvarAlteracoes() {
             posicao: novaPosicao,
             redes:   novasRedes
         }, { merge: true });
+
+        // ── Propaga redes para todas as inscrições do jogador ──────────
+        // Isso permite que outros jogadores vejam as redes sem precisar
+        // de acesso direto ao documento users/{uid}.
+        try {
+            const ligasSnap = await getDocs(collection(db, "ligas"));
+            await Promise.all(ligasSnap.docs.map(async ligaDoc => {
+                const inscricaoRef  = doc(db, "ligas", ligaDoc.id, "inscricoes", usuarioAtual.uid);
+                const inscricaoSnap = await getDoc(inscricaoRef);
+                if (inscricaoSnap.exists()) {
+                    await updateDoc(inscricaoRef, { redes: redesParaExibir });
+                }
+            }));
+        } catch (e) { /* propagação é best-effort — não bloqueia o save do perfil */ }
 
         // ── Atualiza a view ──────────────────────────────────
         viewNome.textContent    = novoNome;

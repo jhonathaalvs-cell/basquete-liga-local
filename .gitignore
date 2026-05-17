@@ -1,0 +1,30 @@
+# Variáveis de ambiente (senhas, chaves de API, segredos)
+.env
+.env.local
+.env.development
+.env.production
+.env.*
+
+# Dependências Node.js (caso adicione no futuro)
+node_modules/
+
+# Arquivos de configuração sensíveis
+config/secrets.js
+config/secrets.json
+secrets.js
+secrets.json
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editores
+.vscode/settings.json
+.idea/
+*.suo
+*.user

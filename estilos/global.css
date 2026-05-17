@@ -115,3 +115,25 @@ body {
         font-size: 13px;
     }
 }
+
+/* ── Ícone de coroa (CSS puro, sem emoji) ───────────────────── */
+.icone-coroa {
+    display: inline-block;
+    width: 13px;
+    height: 10px;
+    background: currentColor;
+    clip-path: polygon(
+        0% 100%,
+        0% 48%,
+        22% 68%,
+        50% 0%,
+        78% 68%,
+        100% 48%,
+        100% 100%
+    );
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+    margin-right: 4px;
+    flex-shrink: 0;
+}

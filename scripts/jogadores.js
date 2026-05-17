@@ -80,10 +80,11 @@ async function carregarJogadores() {
             const ligaNome   = ligaData.nome;
             const ligaStatus = ligaData.status;
 
-            const [timesSnap, inscricoesSnap, jogosSnap] = await Promise.all([
+            const [timesSnap, inscricoesSnap, jogosSnap, votacoesSnap] = await Promise.all([
                 getDocs(collection(db, "ligas", ligaId, "times")),
                 getDocs(collection(db, "ligas", ligaId, "inscricoes")),
-                getDocs(collection(db, "ligas", ligaId, "jogos"))
+                getDocs(collection(db, "ligas", ligaId, "jogos")),
+                getDocs(collection(db, "ligas", ligaId, "votacoes"))
             ]);
 
             // Mapa timeId → { nome, cor }
@@ -109,6 +110,15 @@ async function carregarJogadores() {
                 if (pB > pA && idB) vitoriasPoTime[idB] = (vitoriasPoTime[idB] || 0) + 1;
             });
 
+            // Mapa uid → nº de destaques conquistados (votações encerradas)
+            const destaqueMap = {};
+            votacoesSnap.docs.forEach(d => {
+                const data = d.data();
+                if (data.status === "encerrada" && data.destaque?.uid) {
+                    destaqueMap[data.destaque.uid] = (destaqueMap[data.destaque.uid] || 0) + 1;
+                }
+            });
+
             // Monta lista de jogadores com dados do time
             // Promise.all para buscar o perfil (redes) de cada jogador em paralelo
             const jogadores = await Promise.all(inscricoesSnap.docs.map(async d => {
@@ -117,12 +127,17 @@ async function carregarJogadores() {
                 const jogos = jogosPorTime[dados.timeId] || 0;
                 const vit   = vitoriasPoTime[dados.timeId] || 0;
 
-                // Busca o perfil do jogador para pegar as redes sociais
-                let redes = {};
-                try {
-                    const perfilSnap = await getDoc(doc(db, "users", d.id));
-                    if (perfilSnap.exists()) redes = perfilSnap.data().redes || {};
-                } catch (e) { /* ignora — rede fica vazia */ }
+                // Redes: lê da inscrição primeiro (propagado pelo perfil.js ao salvar).
+                // Cai para users/{uid} como fallback para jogadores que ainda não resalvaram.
+                let redes = dados.redes || {};
+                if (Object.keys(redes).length === 0) {
+                    try {
+                        const perfilSnap = await getDoc(doc(db, "users", d.id));
+                        if (perfilSnap.exists()) redes = perfilSnap.data().redes || {};
+                    } catch (e) {
+                        console.warn("[jogadores] sem permissão para ler perfil de", d.id, "—", e.code);
+                    }
+                }
 
                 return {
                     uid:         d.id,
@@ -134,6 +149,7 @@ async function carregarJogadores() {
                     jogosCount:  jogos,
                     vitorias:    vit,
                     pctVitorias: jogos > 0 ? Math.round((vit / jogos) * 100) : null,
+                    destaques:   destaqueMap[d.id] || 0,
                     redes
                 };
             }));
@@ -166,6 +182,15 @@ async function carregarJogadores() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// gerarIniciais(nome) → "AB" a partir do nome do jogador
+// ─────────────────────────────────────────────────────────────
+function gerarIniciais(nome) {
+    const palavras = (nome || "").trim().split(/\s+/);
+    if (palavras.length === 1) return palavras[0].substring(0, 2).toUpperCase();
+    return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
+}
+
+// ─────────────────────────────────────────────────────────────
 // renderizarLista()
 // Renderiza as seções de liga com seus cards de jogadores
 // ─────────────────────────────────────────────────────────────
@@ -195,51 +220,61 @@ function renderizarLista() {
         const secao = document.createElement("div");
         secao.className = "jog-secao";
 
+        const cardsHTML = liga.jogadores.map(j => {
+            const iniciais    = gerarIniciais(j.nome);
+            const cor         = j.timeCor || "#555";
+            const pct         = j.pctVitorias;
+            const pctCl       = pct !== null ? pctClasse(pct) : "jog-pct-nd";
+            const pctVal      = pct !== null ? `${pct}%` : "—";
+            const redesHtml   = renderRedesCard(j.redes);
+            const destaqueItem = j.destaques > 0
+                ? `<div class="jog-stat-item">
+                       <span class="jog-stat-val jog-stat-destaque"><span class="icone-coroa"></span>${j.destaques}</span>
+                       <span class="jog-stat-label">Destaque${j.destaques !== 1 ? "s" : ""}</span>
+                   </div>`
+                : "";
+
+            return `
+                <div class="jog-card">
+                    <div class="jog-accent-bar" style="background:${cor}"></div>
+                    <div class="jog-card-header">
+                        <div class="jog-avatar" style="background:${cor}22;color:${cor}">${iniciais}</div>
+                        <div class="jog-info">
+                            <div class="jog-nome">${j.nome}</div>
+                            <div class="jog-time-nome">
+                                <span class="jog-time-dot" style="background:${cor}"></span>
+                                ${j.timeNome}
+                            </div>
+                            ${j.posicao ? `<span class="jog-pos ${posClasse(j.posicao)}">${j.posicao}</span>` : ""}
+                        </div>
+                    </div>
+                    <div class="jog-stats-strip">
+                        <div class="jog-stat-item">
+                            <span class="jog-stat-val ${pctCl}">${pctVal}</span>
+                            <span class="jog-stat-label">Vitórias</span>
+                        </div>
+                        <div class="jog-stat-item">
+                            <span class="jog-stat-val">${j.jogosCount}</span>
+                            <span class="jog-stat-label">Jogos</span>
+                        </div>
+                        ${destaqueItem}
+                    </div>
+                    ${redesHtml}
+                </div>
+            `;
+        }).join("");
+
         secao.innerHTML = `
             <div class="jog-secao-titulo">
                 ${liga.ligaNome}
-                <span style="font-size:11px;color:#555;font-weight:400;letter-spacing:0;text-transform:none">
+                <span style="font-size:11px;color:rgba(237,237,239,0.4);font-weight:400;letter-spacing:0;text-transform:none">
                     ${statusTexto[liga.ligaStatus] || ""} · ${liga.jogadores.length} jogador${liga.jogadores.length !== 1 ? "es" : ""}
                 </span>
             </div>
-            <div class="jog-lista-interna">
-                ${liga.jogadores.map((j, i) => `
-                    <div class="jog-card">
-                        <span class="jog-num">${i + 1}</span>
-                        <span class="jog-time-cor" style="background:${j.timeCor}"></span>
-                        <div class="jog-info">
-                            <div class="jog-nome">${j.nome}</div>
-                            <div class="jog-time-nome">${j.timeNome}</div>
-                            ${j.posicao ? `<span class="jog-pos ${posClasse(j.posicao)}">${j.posicao}</span>` : ""}
-                            ${renderRedesCard(j.redes)}
-                        </div>
-                        <div class="jog-direita">
-                            ${j.pctVitorias !== null
-                                ? `<span class="jog-pct ${pctClasse(j.pctVitorias)}">${j.pctVitorias}%</span>
-                                   <span class="jog-pct-label">vitórias</span>`
-                                : `<span class="jog-pct jog-pct-nd">—</span>
-                                   <span class="jog-pct-label">sem jogos</span>`
-                            }
-                            <span class="jog-inscricoes">${j.jogosCount} ${j.jogosCount === 1 ? "jogo" : "jogos"}</span>
-                        </div>
-                    </div>
-                `).join("")}
-            </div>
+            <div class="jog-lista-interna">${cardsHTML}</div>
         `;
 
-        // Aplica bordas arredondadas só no primeiro e último card dentro da seção
         listaEl.appendChild(secao);
-    });
-
-    // Ajusta border-radius dos cards dentro de cada grupo
-    listaEl.querySelectorAll(".jog-lista-interna").forEach(grupo => {
-        const cards = grupo.querySelectorAll(".jog-card");
-        cards.forEach((c, i) => {
-            c.style.borderRadius = "0";
-            if (i === 0 && cards.length === 1) c.style.borderRadius = "12px";
-            else if (i === 0)                  c.style.borderRadius = "12px 12px 0 0";
-            else if (i === cards.length - 1)   c.style.borderRadius = "0 0 12px 12px";
-        });
     });
 }
 
@@ -260,6 +295,7 @@ function renderRedesCard(redes) {
         .filter(r => redes[r.id])
         .map(r => `<a class="jog-rede-chip" href="${r.url(redes[r.id])}" target="_blank" rel="noopener noreferrer" title="${r.label}: @${redes[r.id]}" style="--rede-cor:${r.cor}"><i class="${r.icone}"></i></a>`)
         .join("");
+    if (!chips) return "";
     return `<div class="jog-redes">${chips}</div>`;
 }
 
