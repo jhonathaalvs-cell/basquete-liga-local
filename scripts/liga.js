@@ -1122,77 +1122,93 @@ btnSalvarEdicao.addEventListener("click", async () => {
 // ════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────
-// gerarCalendario(ligaId, times)
-// Algoritmo round-robin clássico (rotação de times).
-// Para N times → N-1 rodadas (N par) ou N rodadas (N ímpar).
-// Cada rodada tem N/2 jogos (ou (N-1)/2 se ímpar).
-// Salva em ligas/{ligaId}/jogos/{jogoId}.
 // ─────────────────────────────────────────────────────────────
-// numTurnos: 1 = round-robin simples, 2 = turno+returno, etc.
-async function gerarCalendario(ligaId, times, numTurnos = 1) {
-    try {
-        const { writeBatch: wb } = await import("https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js");
-        const batch = wb(db);
-
-        // Algoritmo de rotação: fixa o primeiro, roda os demais
-        const listaBase = [...times];
-
-        // Se número ímpar de times, adiciona um "bye" (folga)
-        if (listaBase.length % 2 !== 0) {
-            listaBase.push({ id: "bye", nome: "Folga", cor: "#555" });
+// gerarCalendarioFlexivel(ligaId, times, numRodadas, jogosPorRodada)
+//
+// Algoritmo de pool embaralhado com prioridade de descanso:
+//   • Gera todos os confrontos únicos possíveis (N*(N-1)/2 pares)
+//   • A cada rodada, seleciona jogosPorRodada confrontos priorizando
+//     times que NÃO jogaram na rodada anterior (descanso)
+//   • Se não houver confrontos suficientes sem consecutivos, aceita
+//     times que jogaram na rodada anterior (segundo passe)
+//   • Quando o pool esgota (mais rodadas que confrontos únicos),
+//     recarrega com novos pares embaralhados
+// ─────────────────────────────────────────────────────────────
+async function gerarCalendarioFlexivel(ligaId, times, numRodadas, jogosPorRodada) {
+    function shuffledPool() {
+        const p = [];
+        for (let i = 0; i < times.length; i++)
+            for (let j = i + 1; j < times.length; j++)
+                p.push([times[i], times[j]]);
+        for (let i = p.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [p[i], p[j]] = [p[j], p[i]];
         }
+        return p;
+    }
 
-        const n = listaBase.length;
-        const rodadasPorTurno = n - 1;
+    let pool = shuffledPool();
+    const ultimaRodada = new Map(times.map(t => [t.id, -999]));
+    const todosJogos = [];
 
-        for (let turno = 0; turno < numTurnos; turno++) {
-            // Reinicia a lista na ordem original a cada turno
-            const lista = [...listaBase];
+    for (let r = 1; r <= numRodadas; r++) {
+        if (pool.length < jogosPorRodada) pool.push(...shuffledPool());
 
-            for (let r = 0; r < rodadasPorTurno; r++) {
-                for (let i = 0; i < n / 2; i++) {
-                    const timeA = lista[i];
-                    const timeB = lista[n - 1 - i];
+        const usados     = new Set();
+        const selecionados = [];
 
-                    // Pula jogos contra "bye"
-                    if (timeA.id === "bye" || timeB.id === "bye") continue;
+        // 1º passe: evita times que jogaram na rodada anterior
+        // 2º passe: aceita qualquer par disponível se ainda faltar jogos
+        for (let permiteConsec = 0; permiteConsec <= 1; permiteConsec++) {
+            if (selecionados.length >= jogosPorRodada) break;
 
-                    const rodadaNum = turno * rodadasPorTurno + r + 1;
-                    const jogoRef = doc(collection(db, "ligas", ligaId, "jogos"));
-                    batch.set(jogoRef, {
-                        rodada:  rodadaNum,
-                        timeA:   { id: timeA.id, nome: timeA.nome, cor: timeA.cor },
-                        timeB:   { id: timeB.id, nome: timeB.nome, cor: timeB.cor },
-                        placarA: null,
-                        placarB: null,
-                        status:  "pendente"
-                    });
-                }
+            for (let i = 0; i < pool.length && selecionados.length < jogosPorRodada; i++) {
+                const [tA, tB] = pool[i];
+                if (usados.has(tA.id) || usados.has(tB.id)) continue;
 
-                // Rotaciona: fixa lista[0], rotaciona lista[1..n-1]
-                const ultimo = lista.pop();
-                lista.splice(1, 0, ultimo);
+                const aConsec = ultimaRodada.get(tA.id) === r - 1;
+                const bConsec = ultimaRodada.get(tB.id) === r - 1;
+                if (!permiteConsec && (aConsec || bConsec)) continue;
+
+                selecionados.push(pool.splice(i, 1)[0]);
+                i--;
+                usados.add(tA.id);
+                usados.add(tB.id);
+                ultimaRodada.set(tA.id, r);
+                ultimaRodada.set(tB.id, r);
             }
         }
 
-        const totalRodadas = rodadasPorTurno * numTurnos;
-        await batch.commit();
-        console.log(`Calendário gerado: ${totalRodadas} rodadas (${numTurnos} turno(s)) para ${times.length} times.`);
-
-    } catch (erro) {
-        console.error("Erro ao gerar calendário:", erro);
-        mostrarFeedback("Times salvos, mas erro ao gerar calendário.", "info");
+        for (const [tA, tB] of selecionados) {
+            todosJogos.push({
+                rodada:  r,
+                timeA:   { id: tA.id, nome: tA.nome, cor: tA.cor },
+                timeB:   { id: tB.id, nome: tB.nome, cor: tB.cor },
+                placarA: null,
+                placarB: null,
+                status:  "pendente"
+            });
+        }
     }
+
+    // Salva em Firestore — divide em batches de 400 para respeitar o limite de 500
+    const { writeBatch: wb } = await import("https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js");
+    for (let i = 0; i < todosJogos.length; i += 400) {
+        const batch = wb(db);
+        todosJogos.slice(i, i + 400).forEach(jogo => {
+            batch.set(doc(collection(db, "ligas", ligaId, "jogos")), jogo);
+        });
+        await batch.commit();
+    }
+
+    console.log(`Calendário gerado: ${numRodadas} rodadas × ${jogosPorRodada} jogos = ${todosJogos.length} jogos.`);
 }
 
 // ─────────────────────────────────────────────────────────────
 // confirmarEGerarRodadas(ligaId, ligaNome)
-// Admin clicou "Gerar Rodadas": busca os times já salvos no
-// Firestore, pergunta quantos turnos e gera o calendário.
-// Muda status de "nomes_times" para "ativo".
+// Carrega os times do Firestore e abre o modal de configuração.
 // ─────────────────────────────────────────────────────────────
 async function confirmarEGerarRodadas(ligaId, ligaNome) {
-    // Carrega os times salvos
     let times;
     try {
         const snap = await getDocs(collection(db, "ligas", ligaId, "times"));
@@ -1205,41 +1221,136 @@ async function confirmarEGerarRodadas(ligaId, ligaNome) {
         mostrarFeedback("Erro ao carregar times.", "erro");
         return;
     }
+    abrirModalGerarRodadas(ligaId, ligaNome, times);
+}
 
-    // Mostra nomes atuais para o admin confirmar
-    const listaNomes = times.map(t => `• ${t.nome}`).join("\n");
-    const nTimes = times.length;
-    const rodadasBase = nTimes % 2 === 0 ? nTimes - 1 : nTimes;
+// ═════════════════════════════════════════════════════════════
+// MODAL: GERAR RODADAS
+// ═════════════════════════════════════════════════════════════
 
-    const respTurnos = prompt(
-        `Liga: ${ligaNome}\n\n` +
-        `Times (${nTimes}):\n${listaNomes}\n\n` +
-        `Quantos turnos no calendário?\n` +
-        `• 1 turno  = ${rodadasBase} rodadas\n` +
-        `• 2 turnos = ${rodadasBase * 2} rodadas (turno + returno)\n\n` +
-        `Digite 1, 2, 3...`,
-        "1"
-    );
-    if (respTurnos === null) return; // cancelou
+const modalGerarRodadas = document.getElementById("modal-gerar-rodadas");
+const btnFecharGR       = document.getElementById("btn-fechar-gr");
+const grTimesLista      = document.getElementById("gr-times-lista");
+const grInputRodadas    = document.getElementById("gr-input-rodadas");
+const grInputJogos      = document.getElementById("gr-input-jogos");
+const grHintRodadas     = document.getElementById("gr-hint-rodadas");
+const grHintJogos       = document.getElementById("gr-hint-jogos");
+const grPreview         = document.getElementById("gr-preview");
+const btnConfirmarGR    = document.getElementById("btn-confirmar-gr");
 
-    const numTurnos = Math.max(1, Math.min(10, parseInt(respTurnos) || 1));
+let grState = { ligaId: null, ligaNome: null, times: [] };
+
+btnFecharGR.addEventListener("click", () => modalGerarRodadas.classList.add("oculto"));
+modalGerarRodadas.addEventListener("click", e => {
+    if (e.target === modalGerarRodadas) modalGerarRodadas.classList.add("oculto");
+});
+grInputRodadas.addEventListener("input", atualizarPreviewGR);
+grInputJogos.addEventListener("input", atualizarPreviewGR);
+
+function abrirModalGerarRodadas(ligaId, ligaNome, times) {
+    grState = { ligaId, ligaNome, times };
+
+    const N          = times.length;
+    const maxJogos   = Math.floor(N / 2);
+    const rodadasBase = N % 2 === 0 ? N - 1 : N;
+
+    grTimesLista.innerHTML = times.map(t =>
+        `<span class="gr-time-chip" style="--chip-cor:${t.cor}">${t.nome}</span>`
+    ).join("");
+
+    grInputRodadas.value = rodadasBase;
+    grInputRodadas.max   = rodadasBase * 4;
+    grInputJogos.value   = maxJogos;
+    grInputJogos.max     = maxJogos;
+    grHintRodadas.textContent = `Round-robin simples = ${rodadasBase} rodadas`;
+    grHintJogos.textContent   = `Máximo: ${maxJogos} (todos os ${N} times jogam)`;
+
+    atualizarPreviewGR();
+    modalGerarRodadas.classList.remove("oculto");
+}
+
+function atualizarPreviewGR() {
+    const N      = grState.times.length;
+    const R      = parseInt(grInputRodadas.value) || 0;
+    const J      = parseInt(grInputJogos.value)   || 0;
+    const maxJ   = Math.floor(N / 2);
+
+    if (J > maxJ) {
+        grHintJogos.textContent = `⚠️ Máximo possível com ${N} times: ${maxJ}`;
+        grPreview.classList.add("oculto");
+        return;
+    }
+    grHintJogos.textContent = `Máximo: ${maxJ} (todos os ${N} times jogam)`;
+
+    if (!R || !J) { grPreview.classList.add("oculto"); return; }
+
+    const timesJogam    = J * 2;
+    const timesDescansam = N - timesJogam;
+    const totalJogos    = R * J;
+    const jogosPorTime  = Math.round((totalJogos * 2) / N);
+
+    // Aviso de consecutivos: inevitável se times que descansam < times que jogam
+    const avisoHTML = timesDescansam < timesJogam
+        ? `<p class="gr-aviso">⚠️ Com ${timesDescansam} time${timesDescansam !== 1 ? "s" : ""} descansando por rodada, alguns precisarão jogar rodadas consecutivas.</p>`
+        : "";
+
+    grPreview.classList.remove("oculto");
+    grPreview.innerHTML = `
+        <div class="gr-preview-grid">
+            <div class="gr-prev-item">
+                <span class="gr-prev-val">${R}</span>
+                <span class="gr-prev-label">rodadas</span>
+            </div>
+            <div class="gr-prev-item">
+                <span class="gr-prev-val">${J}</span>
+                <span class="gr-prev-label">jogos/rodada</span>
+            </div>
+            <div class="gr-prev-item">
+                <span class="gr-prev-val">${timesJogam}</span>
+                <span class="gr-prev-label">times por rodada</span>
+            </div>
+            <div class="gr-prev-item ${timesDescansam === 0 ? "gr-prev-nd" : ""}">
+                <span class="gr-prev-val">${timesDescansam}</span>
+                <span class="gr-prev-label">descansam</span>
+            </div>
+            <div class="gr-prev-item">
+                <span class="gr-prev-val">~${jogosPorTime}</span>
+                <span class="gr-prev-label">jogos/time</span>
+            </div>
+            <div class="gr-prev-item">
+                <span class="gr-prev-val">${totalJogos}</span>
+                <span class="gr-prev-label">total de jogos</span>
+            </div>
+        </div>
+        ${avisoHTML}
+    `;
+}
+
+btnConfirmarGR.addEventListener("click", async () => {
+    const N    = grState.times.length;
+    const R    = parseInt(grInputRodadas.value);
+    const J    = parseInt(grInputJogos.value);
+    const maxJ = Math.floor(N / 2);
+
+    if (!R || R < 1) { mostrarFeedback("Informe o número de rodadas.", "erro"); return; }
+    if (!J || J < 1 || J > maxJ) {
+        mostrarFeedback(`Jogos por rodada deve ser entre 1 e ${maxJ}.`, "erro");
+        return;
+    }
+
+    modalGerarRodadas.classList.add("oculto");
+    mostrarFeedback("Gerando calendário...", "info");
 
     try {
-        mostrarFeedback("Gerando calendário...", "info");
-
-        await gerarCalendario(ligaId, times, numTurnos);
-
-        // Avança status para "ativo"
-        await updateDoc(doc(db, "ligas", ligaId), { status: "ativo" });
-
-        mostrarFeedback(`Calendário gerado! ${numTurnos * rodadasBase} rodadas criadas. 🏆`, "sucesso");
+        await gerarCalendarioFlexivel(grState.ligaId, grState.times, R, J);
+        await updateDoc(doc(db, "ligas", grState.ligaId), { status: "ativo" });
+        mostrarFeedback(`Calendário gerado! ${R} rodadas, ${J} jogo${J !== 1 ? "s" : ""} por rodada. 🏆`, "sucesso");
         await carregarLigasAdmin();
-
     } catch (e) {
-        console.error("Erro ao gerar rodadas:", e);
-        mostrarFeedback("Erro ao gerar rodadas.", "erro");
+        console.error("Erro ao gerar calendário:", e);
+        mostrarFeedback("Erro ao gerar calendário.", "erro");
     }
-}
+});
 
 // ─────────────────────────────────────────────────────────────
 // Estado do modal de calendário

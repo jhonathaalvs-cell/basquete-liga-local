@@ -500,6 +500,53 @@
     </section>
 
     <!-- ════════════════════════════════════
+         MODAL: GERAR RODADAS (admin)
+         Admin configura número de rodadas e
+         jogos por rodada antes de gerar o calendário.
+    ════════════════════════════════════ -->
+    <div id="modal-gerar-rodadas" class="modal-overlay oculto">
+        <div class="modal-caixa modal-caixa-pequena">
+
+            <div class="modal-header">
+                <h3 id="gr-titulo" class="modal-titulo">🗓 Gerar Calendário</h3>
+                <button id="btn-fechar-gr" class="btn-fechar-modal" aria-label="Fechar">✕</button>
+            </div>
+
+            <div class="modal-corpo">
+
+                <!-- Lista de times confirmados -->
+                <div class="gr-times-confirm">
+                    <p class="gr-section-label">Times na liga</p>
+                    <div id="gr-times-lista" class="gr-times-lista"></div>
+                </div>
+
+                <!-- Configuração -->
+                <div class="gr-config">
+                    <div class="gr-campo">
+                        <label class="form-label" for="gr-input-rodadas">Número de rodadas</label>
+                        <input id="gr-input-rodadas" type="number" class="form-input form-input-pequeno"
+                               min="1" max="200" placeholder="Ex: 7">
+                        <p id="gr-hint-rodadas" class="gr-hint"></p>
+                    </div>
+
+                    <div class="gr-campo">
+                        <label class="form-label" for="gr-input-jogos">Jogos por rodada</label>
+                        <input id="gr-input-jogos" type="number" class="form-input form-input-pequeno"
+                               min="1" placeholder="Ex: 3">
+                        <p id="gr-hint-jogos" class="gr-hint"></p>
+                    </div>
+                </div>
+
+                <!-- Preview calculado automaticamente -->
+                <div id="gr-preview" class="gr-preview oculto"></div>
+
+                <button id="btn-confirmar-gr" class="btn-primario">Gerar Calendário 🏆</button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════
          MODAL: INICIAR PLAYOFFS (admin)
          Admin escolhe quantos times avançam;
          o sistema gera o chaveamento automaticamente
