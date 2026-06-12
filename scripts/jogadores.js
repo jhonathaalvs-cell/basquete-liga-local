@@ -80,11 +80,10 @@ async function carregarJogadores() {
             const ligaNome   = ligaData.nome;
             const ligaStatus = ligaData.status;
 
-            const [timesSnap, inscricoesSnap, jogosSnap, votacoesSnap] = await Promise.all([
+            const [timesSnap, inscricoesSnap, jogosSnap] = await Promise.all([
                 getDocs(collection(db, "ligas", ligaId, "times")),
                 getDocs(collection(db, "ligas", ligaId, "inscricoes")),
-                getDocs(collection(db, "ligas", ligaId, "jogos")),
-                getDocs(collection(db, "ligas", ligaId, "votacoes"))
+                getDocs(collection(db, "ligas", ligaId, "jogos"))
             ]);
 
             // Mapa timeId → { nome, cor }
@@ -110,13 +109,16 @@ async function carregarJogadores() {
                 if (pB > pA && idB) vitoriasPoTime[idB] = (vitoriasPoTime[idB] || 0) + 1;
             });
 
-            // Mapa uid → nº de destaques conquistados (votações encerradas)
-            const destaqueMap = {};
-            votacoesSnap.docs.forEach(d => {
-                const data = d.data();
-                if (data.status === "encerrada" && data.destaque?.uid) {
-                    destaqueMap[data.destaque.uid] = (destaqueMap[data.destaque.uid] || 0) + 1;
-                }
+            // Mapa uid → { totalPontos, jogosComPontos }
+            const pontosMap = {};
+            jogosSnap.docs.forEach(d => {
+                const jogo = d.data();
+                if (jogo.status !== "finalizado" || !jogo.pontosJogadores) return;
+                Object.entries(jogo.pontosJogadores).forEach(([uid, pts]) => {
+                    if (!pontosMap[uid]) pontosMap[uid] = { totalPontos: 0, jogosComPontos: 0 };
+                    pontosMap[uid].totalPontos += Number(pts) || 0;
+                    pontosMap[uid].jogosComPontos++;
+                });
             });
 
             // Monta lista de jogadores com dados do time
@@ -139,17 +141,23 @@ async function carregarJogadores() {
                     }
                 }
 
+                const statsP = pontosMap[d.id] || { totalPontos: 0, jogosComPontos: 0 };
+                const mediaPontos = statsP.jogosComPontos > 0
+                    ? Math.round((statsP.totalPontos / statsP.jogosComPontos) * 10) / 10
+                    : 0;
+
                 return {
-                    uid:         d.id,
-                    nome:        dados.nomeJogador || "Jogador",
-                    posicao:     dados.posicao || "",
-                    timeNome:    time ? time.nome : "Sem time",
-                    timeCor:     time ? time.cor  : "#444",
-                    timeId:      dados.timeId || null,
-                    jogosCount:  jogos,
-                    vitorias:    vit,
-                    pctVitorias: jogos > 0 ? Math.round((vit / jogos) * 100) : null,
-                    destaques:   destaqueMap[d.id] || 0,
+                    uid:          d.id,
+                    nome:         dados.nomeJogador || "Jogador",
+                    posicao:      dados.posicao || "",
+                    timeNome:     time ? time.nome : "Sem time",
+                    timeCor:      time ? time.cor  : "#444",
+                    timeId:       dados.timeId || null,
+                    jogosCount:   jogos,
+                    vitorias:     vit,
+                    pctVitorias:  jogos > 0 ? Math.round((vit / jogos) * 100) : null,
+                    totalPontos:  statsP.totalPontos,
+                    mediaPontos,
                     redes
                 };
             }));
@@ -227,10 +235,14 @@ function renderizarLista() {
             const pctCl       = pct !== null ? pctClasse(pct) : "jog-pct-nd";
             const pctVal      = pct !== null ? `${pct}%` : "—";
             const redesHtml   = renderRedesCard(j.redes);
-            const destaqueItem = j.destaques > 0
+            const pontosItem  = j.totalPontos > 0
                 ? `<div class="jog-stat-item">
-                       <span class="jog-stat-val jog-stat-destaque"><span class="icone-coroa"></span>${j.destaques}</span>
-                       <span class="jog-stat-label">Destaque${j.destaques !== 1 ? "s" : ""}</span>
+                       <span class="jog-stat-val jog-stat-destaque">${j.totalPontos}</span>
+                       <span class="jog-stat-label">Pts total</span>
+                   </div>
+                   <div class="jog-stat-item">
+                       <span class="jog-stat-val">${j.mediaPontos}</span>
+                       <span class="jog-stat-label">Pts/jogo</span>
                    </div>`
                 : "";
 
@@ -257,7 +269,7 @@ function renderizarLista() {
                             <span class="jog-stat-val">${j.jogosCount}</span>
                             <span class="jog-stat-label">Jogos</span>
                         </div>
-                        ${destaqueItem}
+                        ${pontosItem}
                     </div>
                     ${redesHtml}
                 </div>

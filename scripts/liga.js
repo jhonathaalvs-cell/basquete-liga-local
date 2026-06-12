@@ -1763,7 +1763,7 @@ function recalcularTotais() {
     inputPlacarB.value = somaB;
 }
 
-function abrirModalPlacar(jogo) {
+async function abrirModalPlacar(jogo) {
     calState.jogoAtivo = jogo;
 
     placarConfrontoEl.innerHTML = `
@@ -1784,7 +1784,65 @@ function abrirModalPlacar(jogo) {
         );
     }
 
+    // Carregar jogadores dos dois times para entrada de pontos
+    await carregarJogadoresNoModal(jogo);
+
     modalPlacar.classList.remove("oculto");
+}
+
+async function carregarJogadoresNoModal(jogo) {
+    const secao = document.getElementById("pontos-jogadores-secao");
+    if (!secao) return;
+    secao.innerHTML = '<p style="color:rgba(237,237,239,0.5);font-size:12px">Carregando jogadores...</p>';
+
+    try {
+        const [snapA, snapB] = await Promise.all([
+            getDoc(doc(db, "ligas", calState.ligaId, "times", jogo.timeA.id)),
+            getDoc(doc(db, "ligas", calState.ligaId, "times", jogo.timeB.id))
+        ]);
+
+        const pontosExistentes = jogo.pontosJogadores || {};
+
+        const renderGrupo = (snap, time) => {
+            if (!snap.exists()) return "";
+            const jogadores = snap.data().jogadores || [];
+            if (jogadores.length === 0) return "";
+            const linhas = jogadores.map(j => {
+                const uid = j.uid;
+                const nome = j.nomeJogador || j.nome || "Jogador";
+                const pts = pontosExistentes[uid] ?? "";
+                const iniciais = nome.trim().split(/\s+/).reduce((acc, p, i, arr) =>
+                    i === 0 || i === arr.length - 1 ? acc + p[0].toUpperCase() : acc, "");
+                return `
+                    <div class="pontos-jog-row">
+                        <div class="pontos-jog-avatar" style="background:${time.cor}22;color:${time.cor}">${iniciais}</div>
+                        <span class="pontos-jog-nome">${nome}</span>
+                        <input type="number" class="form-input pontos-jog-input" min="0" max="999"
+                               placeholder="0" value="${pts}" data-uid="${uid}">
+                    </div>
+                `;
+            }).join("");
+            return `
+                <div class="pontos-time-grupo">
+                    <div class="pontos-time-label" style="color:${time.cor}">${time.nome}</div>
+                    ${linhas}
+                </div>
+            `;
+        };
+
+        const htmlA = renderGrupo(snapA, jogo.timeA);
+        const htmlB = renderGrupo(snapB, jogo.timeB);
+
+        if (!htmlA && !htmlB) {
+            secao.innerHTML = '<p style="color:rgba(237,237,239,0.4);font-size:12px">Nenhum jogador cadastrado nos times.</p>';
+            return;
+        }
+
+        secao.innerHTML = `${htmlA}${htmlB}`;
+    } catch (e) {
+        console.warn("Erro ao carregar jogadores para pontuação:", e);
+        secao.innerHTML = '<p style="color:rgba(237,237,239,0.4);font-size:12px">Não foi possível carregar jogadores.</p>';
+    }
 }
 
 document.getElementById("btn-add-quarto").addEventListener("click", () => {
@@ -1825,12 +1883,45 @@ btnSalvarPlacar.addEventListener("click", async () => {
         });
         const temQuartos = Object.keys(quartosObj).length > 0;
 
-        await updateDoc(doc(db, "ligas", calState.ligaId, "jogos", jogo.id), {
+        // Coletar pontos individuais dos jogadores
+        const pontosJogadores = {};
+        document.querySelectorAll("#pontos-jogadores-secao .pontos-jog-input").forEach(inp => {
+            const uid = inp.dataset.uid;
+            const pts = parseInt(inp.value) || 0;
+            if (uid) pontosJogadores[uid] = pts;
+        });
+
+        // Determinar destaque automaticamente (maior pontuador)
+        let destaqueNovo = null;
+        const entradas = Object.entries(pontosJogadores).filter(([, p]) => p > 0);
+        if (entradas.length > 0) {
+            entradas.sort(([, a], [, b]) => b - a);
+            const [destaqueUid, destaquePts] = entradas[0];
+            const inputEl = document.querySelector(`#pontos-jogadores-secao .pontos-jog-input[data-uid="${destaqueUid}"]`);
+            const nomeEl  = inputEl ? inputEl.closest(".pontos-jog-row")?.querySelector(".pontos-jog-nome") : null;
+            const nome    = nomeEl ? nomeEl.textContent.trim() : "";
+            const timeDestaque = pA >= pB ? jogo.timeA : jogo.timeB;
+            destaqueNovo = {
+                uid:      destaqueUid,
+                nome,
+                posicao:  "",
+                timeNome: timeDestaque.nome,
+                timeCor:  timeDestaque.cor,
+                pontos:   destaquePts
+            };
+        }
+
+        const temPontos = Object.keys(pontosJogadores).length > 0;
+        const updateData = {
             placarA: pA,
             placarB: pB,
             status:  "finalizado",
-            quartos: temQuartos ? quartosObj : deleteField()
-        });
+            quartos: temQuartos ? quartosObj : deleteField(),
+            pontosJogadores: temPontos ? pontosJogadores : deleteField(),
+            destaque: destaqueNovo !== null ? destaqueNovo : deleteField()
+        };
+
+        await updateDoc(doc(db, "ligas", calState.ligaId, "jogos", jogo.id), updateData);
 
         // Atualiza localmente para não precisar recarregar do Firebase
         const jogoLocal = calState.jogos.find(j => j.id === jogo.id);
@@ -1840,18 +1931,15 @@ btnSalvarPlacar.addEventListener("click", async () => {
             jogoLocal.status  = "finalizado";
             if (temQuartos) jogoLocal.quartos = quartosObj;
             else delete jogoLocal.quartos;
+            if (temPontos) jogoLocal.pontosJogadores = pontosJogadores;
+            else delete jogoLocal.pontosJogadores;
+            if (destaqueNovo) jogoLocal.destaque = destaqueNovo;
+            else delete jogoLocal.destaque;
         }
 
         fecharModalPlacar();
         renderizarJogos();
         mostrarFeedback("Resultado registrado! ✅", "sucesso");
-
-        // Cria votação de destaque no Hub (jogo não-empatado)
-        if (pA !== pB) {
-            criarVotacaoRodada(jogo, pA, pB).catch(e =>
-                console.warn("Não foi possível criar votação:", e)
-            );
-        }
 
     } catch (erro) {
         console.error("Erro ao salvar placar:", erro);
@@ -1862,50 +1950,6 @@ btnSalvarPlacar.addEventListener("click", async () => {
     }
 });
 
-// ─────────────────────────────────────────────────────────────
-// criarVotacaoRodada(jogo, pA, pB)
-// Cria votação de destaque no Hub após salvar placar de rodada
-// ─────────────────────────────────────────────────────────────
-async function criarVotacaoRodada(jogo, pA, pB) {
-    const timeVencedor = pA > pB ? jogo.timeA : jogo.timeB;
-    const timePerdedor = pA > pB ? jogo.timeB : jogo.timeA;
-
-    const [snapV, snapP] = await Promise.all([
-        getDoc(doc(db, "ligas", calState.ligaId, "times", timeVencedor.id)),
-        getDoc(doc(db, "ligas", calState.ligaId, "times", timePerdedor.id))
-    ]);
-
-    const toJogadores = (snap, time) => snap.exists()
-        ? (snap.data().jogadores || []).map(j => ({
-            uid:      j.uid,
-            nome:     j.nomeJogador || j.nome || "",
-            posicao:  j.posicao || "",
-            timeNome: time.nome,
-            timeCor:  time.cor
-          }))
-        : [];
-
-    const jogadoresList = [
-        ...toJogadores(snapV, timeVencedor),
-        ...toJogadores(snapP, timePerdedor)
-    ];
-
-    if (jogadoresList.length === 0) return;
-
-    await addDoc(collection(db, "ligas", calState.ligaId, "votacoes"), {
-        jogoId:        jogo.id,
-        confrontoFase: "regular",
-        jogoNum:       jogo.rodada,
-        ligaId:        calState.ligaId,
-        ligaNome:      calState.ligaNome,
-        timeVencedor,
-        jogadores:     jogadoresList,
-        votos:         {},
-        status:        "aberta",
-        destaque:      null,
-        criadoEm:      serverTimestamp()
-    });
-}
 
 // ABA TIMES — editar nomes, mover jogadores entre times
 // ─────────────────────────────────────────────────────────────
@@ -3016,70 +3060,75 @@ async function excluirLiga(ligaId, ligaNome) {
 async function carregarMVP(ligaId, container) {
     container.innerHTML = '<p class="draft-carregando">Calculando corrida de MVP...</p>';
     try {
-        const [jogosSnap, playoffsSnap] = await Promise.all([
+        const [jogosSnap, playoffsSnap, timesSnap, inscSnap] = await Promise.all([
             getDocs(collection(db, "ligas", ligaId, "jogos")),
-            getDocs(collection(db, "ligas", ligaId, "playoffs"))
+            getDocs(collection(db, "ligas", ligaId, "playoffs")),
+            getDocs(collection(db, "ligas", ligaId, "times")),
+            getDocs(collection(db, "ligas", ligaId, "inscricoes"))
         ]);
 
-        // mapa uid → { nome, posicao, timeNome, timeCor, destaques }
-        const mapa = {};
-
-        const registrar = (destaque, timeNome, timeCor) => {
-            if (!destaque?.uid) return;
-            if (!mapa[destaque.uid]) {
-                mapa[destaque.uid] = {
-                    uid:      destaque.uid,
-                    nome:     destaque.nome || "Jogador",
-                    posicao:  destaque.posicao || "",
-                    timeNome: destaque.timeNome || timeNome || "",
-                    timeCor:  timeCor || "#555",
-                    destaques: 0
+        // Monta mapas de referência para nome/time dos jogadores
+        const timesCorMap = {};
+        const jogadoresInfoMap = {}; // uid → { nome, posicao, timeNome, timeCor }
+        timesSnap.docs.forEach(d => {
+            const time = d.data();
+            timesCorMap[d.id] = time.cor;
+            (time.jogadores || []).forEach(j => {
+                jogadoresInfoMap[j.uid] = {
+                    nome:     j.nomeJogador || j.nome || "Jogador",
+                    posicao:  j.posicao || "",
+                    timeNome: time.nome,
+                    timeCor:  time.cor
                 };
-            }
-            mapa[destaque.uid].destaques++;
-        };
-
-        // Fase regular: jogos/{jogoId}.destaque
-        jogosSnap.docs.forEach(d => {
-            const jogo = d.data();
-            if (jogo.status === "finalizado" && jogo.destaque?.uid) {
-                const corTime = jogo.timeA?.id === jogo.destaque?.timeId
-                    ? jogo.timeA?.cor : jogo.timeB?.cor;
-                registrar(jogo.destaque, jogo.destaque.timeNome, corTime);
-            }
-        });
-
-        // Playoffs: playoffs/{confrontoId}.jogos[i].destaque
-        playoffsSnap.docs.forEach(d => {
-            const confronto = d.data();
-            const subJogos = confronto.jogos || [];
-            subJogos.forEach(j => {
-                if (j.destaque?.uid) {
-                    registrar(j.destaque, j.destaque.timeNome, null);
-                }
             });
         });
-
-        // Busca cores dos times para quem veio dos playoffs (cor pode estar null)
-        const timesSnap = await getDocs(collection(db, "ligas", ligaId, "times"));
-        const timesCorMap = {};
-        timesSnap.docs.forEach(d => { timesCorMap[d.id] = d.data().cor; });
-
-        // Tenta preencher cor faltante via inscricoes
-        const inscSnap = await getDocs(collection(db, "ligas", ligaId, "inscricoes"));
-        const inscMap = {};
-        inscSnap.docs.forEach(d => { inscMap[d.id] = d.data().timeId; });
-
-        Object.values(mapa).forEach(p => {
-            if (!p.timeCor || p.timeCor === "#555") {
-                const timeId = inscMap[p.uid];
-                if (timeId && timesCorMap[timeId]) p.timeCor = timesCorMap[timeId];
+        inscSnap.docs.forEach(d => {
+            const uid = d.id;
+            if (!jogadoresInfoMap[uid]) {
+                const timeId = d.data().timeId;
+                jogadoresInfoMap[uid] = {
+                    nome:     d.data().nomeJogador || "Jogador",
+                    posicao:  d.data().posicao || "",
+                    timeNome: "",
+                    timeCor:  (timeId && timesCorMap[timeId]) || "#555"
+                };
             }
         });
 
-        const ranking = Object.values(mapa)
-            .filter(p => p.destaques > 0)
-            .sort((a, b) => b.destaques - a.destaques || a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
+        // mapa uid → { totalPontos, jogosComPontos }
+        const mapa = {};
+
+        const acumular = (pontosJogadores) => {
+            if (!pontosJogadores || typeof pontosJogadores !== "object") return;
+            Object.entries(pontosJogadores).forEach(([uid, pts]) => {
+                if (!mapa[uid]) mapa[uid] = { totalPontos: 0, jogosComPontos: 0 };
+                mapa[uid].totalPontos += Number(pts) || 0;
+                mapa[uid].jogosComPontos++;
+            });
+        };
+
+        // Fase regular
+        jogosSnap.docs.forEach(d => {
+            const jogo = d.data();
+            if (jogo.status === "finalizado") acumular(jogo.pontosJogadores);
+        });
+
+        // Playoffs
+        playoffsSnap.docs.forEach(d => {
+            (d.data().jogos || []).forEach(j => acumular(j.pontosJogadores));
+        });
+
+        const ranking = Object.entries(mapa)
+            .map(([uid, stats]) => {
+                const info = jogadoresInfoMap[uid] || { nome: "Jogador", posicao: "", timeNome: "", timeCor: "#555" };
+                const media = stats.jogosComPontos > 0
+                    ? Math.round((stats.totalPontos / stats.jogosComPontos) * 10) / 10
+                    : 0;
+                return { uid, ...info, ...stats, mediaPontos: media };
+            })
+            .filter(p => p.totalPontos > 0)
+            .sort((a, b) => b.totalPontos - a.totalPontos || a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }))
+            .slice(0, 10);
 
         renderizarMVP(container, ranking);
     } catch (erro) {
@@ -3090,15 +3139,15 @@ async function carregarMVP(ligaId, container) {
 
 function renderizarMVP(container, ranking) {
     if (ranking.length === 0) {
-        container.innerHTML = '<p class="mvp-vazio">Nenhum destaque registrado ainda.</p>';
+        container.innerHTML = '<p class="mvp-vazio">Nenhum ponto registrado ainda.</p>';
         return;
     }
 
-    const maxDestaques = ranking[0].destaques;
+    const maxPontos = ranking[0].totalPontos;
 
     const itensHTML = ranking.map((p, i) => {
         const pos       = i + 1;
-        const barWidth  = maxDestaques > 0 ? Math.round((p.destaques / maxDestaques) * 100) : 0;
+        const barWidth  = maxPontos > 0 ? Math.round((p.totalPontos / maxPontos) * 100) : 0;
         const posClass  = pos === 1 ? "mvp-pos-1" : pos === 2 ? "mvp-pos-2" : pos === 3 ? "mvp-pos-3" : "mvp-pos-n";
         const isLider   = pos === 1;
         const posicaoHtml = p.posicao ? `<span class="mvp-jogador-pos">${p.posicao}</span>` : "";
@@ -3117,8 +3166,9 @@ function renderizarMVP(container, ranking) {
                     </div>
                 </div>
                 <div class="mvp-destaques-count">
-                    <span class="mvp-count-val">${p.destaques}</span>
-                    <span class="mvp-count-label">destaque${p.destaques !== 1 ? "s" : ""}</span>
+                    <span class="mvp-count-val">${p.totalPontos}</span>
+                    <span class="mvp-count-label">pts</span>
+                    <span class="mvp-count-media">${p.mediaPontos} pts/jogo</span>
                 </div>
             </div>
         `;
