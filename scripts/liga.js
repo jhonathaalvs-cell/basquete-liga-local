@@ -1261,9 +1261,9 @@ function abrirModalGerarRodadas(ligaId, ligaNome, times) {
     grInputRodadas.value = rodadasBase;
     grInputRodadas.max   = rodadasBase * 4;
     grInputJogos.value   = maxJogos;
-    grInputJogos.max     = maxJogos;
+    grInputJogos.max     = N;
     grHintRodadas.textContent = `Round-robin simples = ${rodadasBase} rodadas`;
-    grHintJogos.textContent   = `Máximo: ${maxJogos} (todos os ${N} times jogam)`;
+    grHintJogos.textContent   = `Sugestão: ${maxJogos} (todos os ${N} times jogam nesta rodada)`;
 
     atualizarPreviewGR();
     modalGerarRodadas.classList.remove("oculto");
@@ -1275,12 +1275,7 @@ function atualizarPreviewGR() {
     const J      = parseInt(grInputJogos.value)   || 0;
     const maxJ   = Math.floor(N / 2);
 
-    if (J > maxJ) {
-        grHintJogos.textContent = `⚠️ Máximo possível com ${N} times: ${maxJ}`;
-        grPreview.classList.add("oculto");
-        return;
-    }
-    grHintJogos.textContent = `Máximo: ${maxJ} (todos os ${N} times jogam)`;
+    grHintJogos.textContent = `Sugestão: ${maxJ} (todos os ${N} times jogam nesta rodada)`;
 
     if (!R || !J) { grPreview.classList.add("oculto"); return; }
 
@@ -1289,10 +1284,14 @@ function atualizarPreviewGR() {
     const totalJogos    = R * J;
     const jogosPorTime  = Math.round((totalJogos * 2) / N);
 
-    // Aviso de consecutivos: inevitável se times que descansam < times que jogam
-    const avisoHTML = timesDescansam < timesJogam
-        ? `<p class="gr-aviso">⚠️ Com ${timesDescansam} time${timesDescansam !== 1 ? "s" : ""} descansando por rodada, alguns precisarão jogar rodadas consecutivas.</p>`
-        : "";
+    // Aviso: J acima do possível sem repetir time na mesma rodada
+    let avisoHTML = "";
+    if (J > maxJ) {
+        avisoHTML = `<p class="gr-aviso">⚠️ Com ${N} times, no máximo ${maxJ} confronto${maxJ !== 1 ? "s" : ""} sem repetir time são possíveis por rodada — algumas rodadas podem gerar menos jogos do que o pedido.</p>`;
+    } else if (timesDescansam < timesJogam) {
+        // Aviso de consecutivos: inevitável se times que descansam < times que jogam
+        avisoHTML = `<p class="gr-aviso">⚠️ Com ${timesDescansam} time${timesDescansam !== 1 ? "s" : ""} descansando por rodada, alguns precisarão jogar rodadas consecutivas.</p>`;
+    }
 
     grPreview.classList.remove("oculto");
     grPreview.innerHTML = `
@@ -1309,8 +1308,8 @@ function atualizarPreviewGR() {
                 <span class="gr-prev-val">${timesJogam}</span>
                 <span class="gr-prev-label">times por rodada</span>
             </div>
-            <div class="gr-prev-item ${timesDescansam === 0 ? "gr-prev-nd" : ""}">
-                <span class="gr-prev-val">${timesDescansam}</span>
+            <div class="gr-prev-item ${timesDescansam <= 0 ? "gr-prev-nd" : ""}">
+                <span class="gr-prev-val">${Math.max(0, timesDescansam)}</span>
                 <span class="gr-prev-label">descansam</span>
             </div>
             <div class="gr-prev-item">
@@ -1327,14 +1326,12 @@ function atualizarPreviewGR() {
 }
 
 btnConfirmarGR.addEventListener("click", async () => {
-    const N    = grState.times.length;
     const R    = parseInt(grInputRodadas.value);
     const J    = parseInt(grInputJogos.value);
-    const maxJ = Math.floor(N / 2);
 
     if (!R || R < 1) { mostrarFeedback("Informe o número de rodadas.", "erro"); return; }
-    if (!J || J < 1 || J > maxJ) {
-        mostrarFeedback(`Jogos por rodada deve ser entre 1 e ${maxJ}.`, "erro");
+    if (!J || J < 1) {
+        mostrarFeedback("Informe um número válido de jogos por rodada.", "erro");
         return;
     }
 
