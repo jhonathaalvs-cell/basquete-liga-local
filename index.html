@@ -41,7 +41,8 @@
                         <label for="remember">Lembrar-me</label>
                     </div>
                     <!-- id="btn-esqueceu" para o login.js encontrar esse elemento -->
-                    <span class="span" id="btn-esqueceu">Esqueceu sua senha?</span>
+
+  <span class="span" id="btn-esqueceu">Esqueceu sua senha?</span>
                 </div>
 
                 <!-- Mensagem de erro exibida quando login falha -->
@@ -60,6 +61,17 @@
 
     </section>
 
+    <!-- Modal Recuperar Senha -->
+<div id="modal-recuperar" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <h2>Recuperar senha</h2>
+    <p>Digite seu e-mail e enviaremos um link para redefinir sua senha.</p>
+    <input type="email" id="email-recuperacao" placeholder="Seu e-mail" />
+    <div id="msg-recuperacao"></div>
+    <button type="button" id="btn-enviar-recuperacao">Enviar link</button>
+    <button type="button" id="btn-fechar-modal">Cancelar</button>
+  </div>
+</div>
 
 <!-- type="module" carrega o script como ES Module (suporta import/export)
      e é adiado automaticamente — só roda depois que o HTML estiver pronto -->

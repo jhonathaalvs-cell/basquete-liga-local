@@ -206,3 +206,68 @@ p {
         gap: 8px;
     }
 }
+
+/* ── Modal recuperar senha ── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(48, 48, 48, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.modal-box {
+    background: #000813;
+    border-radius: 12px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    color: white;
+}
+
+.modal-box h2 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.modal-box p {
+    color: #eee8e8;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.modal-box input {
+    padding: 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+#msg-recuperacao {
+    font-size: 0.9rem;
+    min-height: 1.2rem;
+}
+
+#btn-enviar-recuperacao {
+    background: #c97125;   /* troque pela cor principal do seu site */
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+#btn-fechar-modal {
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 0.6rem;
+    cursor: pointer;
+    color: #555;
+}

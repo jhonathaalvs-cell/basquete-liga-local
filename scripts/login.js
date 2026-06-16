@@ -11,7 +11,8 @@ import {
     signInWithEmailAndPassword,   // faz login com e-mail + senha
     setPersistence,               // define quanto tempo a sessão dura
     browserLocalPersistence,      // sessão permanece mesmo fechando o browser
-    browserSessionPersistence     // sessão encerra ao fechar a aba
+    browserSessionPersistence,   // sessão encerra ao fechar a aba
+    sendPasswordResetEmail    // esqueci minha senha ? sim (mdsss)
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -94,10 +95,44 @@ async function fazerLogin() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// "Esqueceu sua senha?" — alerta informativo
+// "Esqueceu sua senha?" — abre modal e envia e-mail de recuperação
 // ─────────────────────────────────────────────────────────────
 function esqueceuSenha() {
-    alert("Recuperação de senha ainda não está disponível.\nEm breve!");
+    document.getElementById("modal-recuperar").style.display = "flex";
+    document.getElementById("email-recuperacao").value = "";
+    document.getElementById("msg-recuperacao").textContent = "";
+}
+
+function fecharModal() {
+    document.getElementById("modal-recuperar").style.display = "none";
+}
+
+async function enviarRecuperacao() {
+    const email = document.getElementById("email-recuperacao").value.trim();
+    const msg   = document.getElementById("msg-recuperacao");
+
+    if (!email) {
+        msg.style.color = "#c0392b";
+        msg.textContent = "Digite seu e-mail.";
+        return;
+    }
+
+    try {
+        await sendPasswordResetEmail(auth, email);
+        msg.style.color = "#27ae60";
+        msg.textContent = "✅ Link enviado! Verifique sua caixa de entrada.";
+        // Fecha o modal após 3 segundos
+        setTimeout(fecharModal, 3000);
+    } catch (erro) {
+        msg.style.color = "#c0392b";
+        if (erro.code === "auth/user-not-found" || erro.code === "auth/invalid-credential") {
+            msg.textContent = "Nenhuma conta encontrada com este e-mail.";
+        } else if (erro.code === "auth/invalid-email") {
+            msg.textContent = "E-mail inválido.";
+        } else {
+            msg.textContent = "Erro ao enviar. Tente novamente.";
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -115,4 +150,10 @@ document.getElementById("btn-toggle-senha").addEventListener("click", () => {
     input.type = mostrar ? "text" : "password";
     btn.classList.toggle("mostrar", mostrar);
     btn.setAttribute("aria-label", mostrar ? "Ocultar senha" : "Mostrar senha");
+});
+
+document.getElementById("btn-fechar-modal").addEventListener("click", fecharModal);
+document.getElementById("btn-enviar-recuperacao").addEventListener("click", enviarRecuperacao);
+document.getElementById("modal-recuperar").addEventListener("click", (e) => {
+    if (e.target.id === "modal-recuperar") fecharModal();
 });
