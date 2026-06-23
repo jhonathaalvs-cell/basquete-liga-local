@@ -3024,7 +3024,7 @@ async function excluirLiga(ligaId, ligaNome) {
 
     try {
         // Exclui cada subcoleção manualmente (obrigatório no Firestore via SDK)
-        const subcolecoes = ["inscricoes", "times", "jogos", "playoffs", "votacoes"];
+        const subcolecoes = ["inscricoes", "times", "jogos", "playoffs"];
 
         for (const subNome of subcolecoes) {
             // Busca todos os documentos da subcoleção
