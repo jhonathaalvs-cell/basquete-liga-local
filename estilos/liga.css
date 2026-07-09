@@ -868,6 +868,40 @@
 
 .modal-caixa-pequena { max-width: 380px; width: 95%; }
 
+/* ─── MODAL DE LOGO AMPLIADA ─── */
+.modal-logo-caixa { max-width: 320px; }
+
+.modal-logo-corpo {
+    align-items: center;
+    justify-content: center;
+    padding: 8px 20px 28px;
+}
+
+.logo-time-grande {
+    width: min(60vw, 220px);
+    aspect-ratio: 1;
+    border-radius: 24px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.logo-time-grande-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.logo-time-grande.sem-logo::before {
+    content: '🏀';
+    font-size: min(15vw, 4rem);
+    line-height: 1;
+}
+
 .placar-confronto {
     display: flex;
     align-items: center;
@@ -1391,6 +1425,30 @@
 
 .vjc-time-barra { width: 3px; height: 36px; border-radius: 3px; flex-shrink: 0; }
 
+.vjc-time-logo-mini {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.vjc-time-logo-mini-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vjc-time-logo-mini.sem-logo::before {
+    content: '🏀';
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
 .vjc-team-info {
     flex: 1;
     min-width: 0;
@@ -1825,10 +1883,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
-    font-size: 1.2rem;
-    font-weight: 900;
-    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
     flex-shrink: 0;
     position: relative;
 }
@@ -1839,6 +1895,28 @@
     inset: 0;
     border-radius: 50%;
     border: 2px solid rgba(255, 255, 255, 0.15);
+    pointer-events: none;
+}
+
+.vjc-time-avatar-clicavel {
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.vjc-time-avatar-clicavel:hover  { transform: scale(1.07); }
+.vjc-time-avatar-clicavel:active { transform: scale(0.96); }
+
+.vjc-time-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Time sem logo correspondente em imagens/franquias: ícone genérico */
+.vjc-time-avatar.sem-logo::before {
+    content: '🏀';
+    font-size: 1.4rem;
+    line-height: 1;
 }
 
 .vjc-time-titulo { flex: 1; min-width: 0; }

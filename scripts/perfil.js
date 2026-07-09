@@ -181,8 +181,8 @@ async function salvarAlteracoes() {
             redes:   novasRedes
         }, { merge: true });
 
-        // ── Propaga redes para todas as inscrições do jogador ──────────
-        // Isso permite que outros jogadores vejam as redes sem precisar
+        // ── Propaga redes e bio para todas as inscrições do jogador ─────
+        // Isso permite que outros jogadores vejam a bio/redes sem precisar
         // de acesso direto ao documento users/{uid}.
         try {
             const ligasSnap = await getDocs(collection(db, "ligas"));
@@ -190,7 +190,7 @@ async function salvarAlteracoes() {
                 const inscricaoRef  = doc(db, "ligas", ligaDoc.id, "inscricoes", usuarioAtual.uid);
                 const inscricaoSnap = await getDoc(inscricaoRef);
                 if (inscricaoSnap.exists()) {
-                    await updateDoc(inscricaoRef, { redes: redesParaExibir });
+                    await updateDoc(inscricaoRef, { redes: redesParaExibir, bio: novaBio });
                 }
             }));
         } catch (e) { /* propagação é best-effort — não bloqueia o save do perfil */ }

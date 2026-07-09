@@ -180,6 +180,41 @@
     white-space: nowrap;
 }
 
+/* ─ Bio ─ */
+.jog-bio-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 16px 10px;
+    padding: 5px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: rgba(237, 237, 239, 0.7);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.jog-bio-toggle:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: white;
+}
+
+.jog-bio-toggle i {
+    font-size: 0.6rem;
+}
+
+.jog-bio {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: rgba(237, 237, 239, 0.65);
+    padding: 0 16px 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 /* ─ Stats strip ─ */
 .jog-stats-strip {
     display: flex;

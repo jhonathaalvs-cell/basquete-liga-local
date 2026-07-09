@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { auth, db } from "./firebase-config.js";
+import { corTime } from "./franquias.js";
 
 import {
     onAuthStateChanged
@@ -89,7 +90,8 @@ async function carregarJogadores() {
             // Mapa timeId → { nome, cor }
             const timesMap = {};
             timesSnap.docs.forEach(d => {
-                timesMap[d.id] = { nome: d.data().nome, cor: d.data().cor };
+                const timeNome = d.data().nome;
+                timesMap[d.id] = { nome: timeNome, cor: corTime(timeNome, d.data().cor) };
             });
 
             // Mapa timeId → nº de jogos finalizados e vitórias
@@ -129,13 +131,18 @@ async function carregarJogadores() {
                 const jogos = jogosPorTime[dados.timeId] || 0;
                 const vit   = vitoriasPoTime[dados.timeId] || 0;
 
-                // Redes: lê da inscrição primeiro (propagado pelo perfil.js ao salvar).
+                // Redes e bio: lê da inscrição primeiro (propagado pelo perfil.js ao salvar).
                 // Cai para users/{uid} como fallback para jogadores que ainda não resalvaram.
                 let redes = dados.redes || {};
-                if (Object.keys(redes).length === 0) {
+                let bio   = dados.bio || "";
+                if (Object.keys(redes).length === 0 || !bio) {
                     try {
                         const perfilSnap = await getDoc(doc(db, "users", d.id));
-                        if (perfilSnap.exists()) redes = perfilSnap.data().redes || {};
+                        if (perfilSnap.exists()) {
+                            const perfilData = perfilSnap.data();
+                            if (Object.keys(redes).length === 0) redes = perfilData.redes || {};
+                            if (!bio) bio = perfilData.bio || "";
+                        }
                     } catch (e) {
                         console.warn("[jogadores] sem permissão para ler perfil de", d.id, "—", e.code);
                     }
@@ -158,7 +165,8 @@ async function carregarJogadores() {
                     pctVitorias:  jogos > 0 ? Math.round((vit / jogos) * 100) : null,
                     totalPontos:  statsP.totalPontos,
                     mediaPontos,
-                    redes
+                    redes,
+                    bio
                 };
             }));
 
@@ -188,6 +196,24 @@ async function carregarJogadores() {
         telaLoading.textContent = "Erro ao carregar jogadores.";
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Alterna mostrar/esconder a bio de um jogador (delegado no
+// container, já que os cards são recriados a cada filtro)
+// ─────────────────────────────────────────────────────────────
+listaEl.addEventListener("click", (evento) => {
+    const botao = evento.target.closest(".jog-bio-toggle");
+    if (!botao) return;
+
+    const bioEl = botao.nextElementSibling;
+    if (!bioEl || !bioEl.classList.contains("jog-bio")) return;
+
+    const aberta = bioEl.classList.toggle("oculto") === false;
+    botao.setAttribute("aria-expanded", String(aberta));
+    botao.innerHTML = aberta
+        ? '<i class="fa-solid fa-chevron-up"></i> Ocultar bio'
+        : '<i class="fa-solid fa-chevron-down"></i> Ver bio';
+});
 
 // ─────────────────────────────────────────────────────────────
 // gerarIniciais(nome) → "AB" a partir do nome do jogador
@@ -235,6 +261,12 @@ function renderizarLista() {
             const pctCl       = pct !== null ? pctClasse(pct) : "jog-pct-nd";
             const pctVal      = pct !== null ? `${pct}%` : "—";
             const redesHtml   = renderRedesCard(j.redes);
+            const bioHtml     = j.bio
+                ? `<button type="button" class="jog-bio-toggle" aria-expanded="false">
+                       <i class="fa-solid fa-chevron-down"></i> Ver bio
+                   </button>
+                   <p class="jog-bio oculto">${escapeHtml(j.bio)}</p>`
+                : "";
             const pontosItem  = j.totalPontos > 0
                 ? `<div class="jog-stat-item">
                        <span class="jog-stat-val jog-stat-destaque">${j.totalPontos}</span>
@@ -260,6 +292,7 @@ function renderizarLista() {
                             ${j.posicao ? `<span class="jog-pos ${posClasse(j.posicao)}">${j.posicao}</span>` : ""}
                         </div>
                     </div>
+                    ${bioHtml}
                     <div class="jog-stats-strip">
                         <div class="jog-stat-item">
                             <span class="jog-stat-val ${pctCl}">${pctVal}</span>
@@ -309,6 +342,16 @@ function renderRedesCard(redes) {
         .join("");
     if (!chips) return "";
     return `<div class="jog-redes">${chips}</div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// escapeHtml(texto) → escapa caracteres HTML antes de inserir
+// texto livre (bio) no innerHTML dos cards
+// ─────────────────────────────────────────────────────────────
+function escapeHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
 }
 
 // ─────────────────────────────────────────────────────────────

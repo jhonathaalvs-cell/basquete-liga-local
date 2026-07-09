@@ -1,0 +1,24 @@
+{
+  "name": "app-basquete---roadmap-e-placar",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhonathaalvs-cell/basquete-liga-local.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jhonathaalvs-cell/basquete-liga-local/issues"
+  },
+  "homepage": "https://github.com/jhonathaalvs-cell/basquete-liga-local#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

@@ -8,6 +8,7 @@
 
 import { auth, db } from "./firebase-config.js";
 import { initPlayoffs, calcularClassificacaoLista } from "./liga/playoffs.js";
+import { corTime, identidadeTime, logoTimeAvatarHtml } from "./franquias.js";
 
 import {
     onAuthStateChanged,
@@ -35,6 +36,22 @@ import {
 let usuarioAtual = null;
 let ligaIdAtual  = null; // ID da liga cujo modal está aberto
 let roleAtual    = "jogador"; // role do usuário logado (admin | jogador)
+
+// Sobrescreve a cor de cada time pela cor oficial da franquia
+// (quando o nome bate), preservando a cor do Firestore como fallback.
+function aplicarIdentidadeTimes(times) {
+    times.forEach(t => { t.cor = corTime(t.nome, t.cor); });
+    return times;
+}
+
+// Idem, mas para os times embutidos (timeA/timeB) dentro de jogos.
+function aplicarIdentidadeJogos(jogos) {
+    jogos.forEach(j => {
+        if (j.timeA) j.timeA.cor = corTime(j.timeA.nome, j.timeA.cor);
+        if (j.timeB) j.timeB.cor = corTime(j.timeB.nome, j.timeB.cor);
+    });
+    return jogos;
+}
 
 // ─── Referências ao HTML ──────────────────────────────────────
 const telaLoading      = document.getElementById("tela-loading");
@@ -1216,7 +1233,7 @@ async function confirmarEGerarRodadas(ligaId, ligaNome) {
             mostrarFeedback("Nenhum time encontrado. Algo deu errado.", "erro");
             return;
         }
-        times = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        times = aplicarIdentidadeTimes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
         mostrarFeedback("Erro ao carregar times.", "erro");
         return;
@@ -1455,7 +1472,7 @@ async function abrirCalendario(ligaId, ligaNome, abaInicial = "jogos") {
         const q    = query(collection(db, "ligas", ligaId, "jogos"), orderBy("rodada"));
         const snap = await getDocs(q);
 
-        calState.jogos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        calState.jogos = aplicarIdentidadeJogos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         renderizarJogos();
 
     } catch (erro) {
@@ -1963,7 +1980,7 @@ async function carregarTimesParaEditar() {
             return;
         }
 
-        timesCarregados = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        timesCarregados = aplicarIdentidadeTimes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         renderizarTimesEditor();
 
     } catch (erro) {
@@ -2215,7 +2232,7 @@ async function abrirNovoJogo() {
     if (!times || times.length === 0) {
         try {
             const snap = await getDocs(collection(db, "ligas", calState.ligaId, "times"));
-            times = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            times = aplicarIdentidadeTimes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             timesCarregados = times;
         } catch (e) {
             mostrarFeedback("Erro ao carregar times.", "erro");
@@ -2418,7 +2435,7 @@ async function abrirViewJogador(ligaId, ligaNome, ligaStatus = "ativo") {
     try {
         const q    = query(collection(db, "ligas", ligaId, "jogos"), orderBy("rodada"));
         const snap = await getDocs(q);
-        vjcState.jogos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        vjcState.jogos = aplicarIdentidadeJogos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         renderizarJogosJogador();
     } catch (erro) {
         console.error("Erro ao carregar jogos:", erro);
@@ -2550,10 +2567,14 @@ function renderizarJogosJogador() {
 
             // Corpo: pendente mostra hora em destaque; demais mostram placar
             const pendente = jogo.status === "pendente";
+            const logoA = logoTimeAvatarHtml(jogo.timeA.nome, jogo.timeA.cor, "vjc-time-logo-mini", "vjc-time-logo-mini-img");
+            const logoB = logoTimeAvatarHtml(jogo.timeB.nome, jogo.timeB.cor, "vjc-time-logo-mini", "vjc-time-logo-mini-img");
+
             const corpo = pendente
                 ? `<div class="vjc-agendado">
                         <div class="vjc-time">
                             <span class="vjc-time-barra" style="background: ${jogo.timeA.cor}"></span>
+                            ${logoA}
                             <div class="vjc-team-info">
                                 <span class="vjc-time-nome">${jogo.timeA.nome}</span>
                                 ${recA ? `<span class="vjc-time-record">${recA}</span>` : ""}
@@ -2568,12 +2589,14 @@ function renderizarJogosJogador() {
                                 <span class="vjc-time-nome">${jogo.timeB.nome}</span>
                                 ${recB ? `<span class="vjc-time-record">${recB}</span>` : ""}
                             </div>
+                            ${logoB}
                             <span class="vjc-time-barra" style="background: ${jogo.timeB.cor}"></span>
                         </div>
                    </div>`
                 : `<div class="vjc-card-confronto">
                         <div class="vjc-time ${vencedorA ? "vjc-vencedor" : ""}">
                             <span class="vjc-time-barra" style="background: ${jogo.timeA.cor}"></span>
+                            ${logoA}
                             <div class="vjc-team-info">
                                 <span class="vjc-time-nome">${vencedorA ? '<span class="icone-coroa vjc-coroa"></span>' : ""}${jogo.timeA.nome}</span>
                                 ${recA ? `<span class="vjc-time-record">${recA}</span>` : ""}
@@ -2594,6 +2617,7 @@ function renderizarJogosJogador() {
                                 <span class="vjc-time-nome">${vencedorB ? '<span class="icone-coroa vjc-coroa"></span>' : ""}${jogo.timeB.nome}</span>
                                 ${recB ? `<span class="vjc-time-record">${recB}</span>` : ""}
                             </div>
+                            ${logoB}
                             <span class="vjc-time-barra" style="background: ${jogo.timeB.cor}"></span>
                         </div>
                    </div>`;
@@ -2633,6 +2657,36 @@ function gerarIniciais(nome) {
     return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
 }
 
+// Logo e cor do time (identidade de franquia) vêm de ./franquias.js
+// — casam o nome do time com um arquivo em imagens/franquias/ e/ou
+// uma cor cadastrada (ex: "Black Panthers" → roxo + black_panthers.jpeg).
+
+// ─────────────────────────────────────────────────────────────
+// Modal de logo ampliada — abre ao clicar na logo de um time
+// na aba "Times" (ver renderizarTimesJogador)
+// ─────────────────────────────────────────────────────────────
+const modalLogoTime     = document.getElementById("modal-logo-time");
+const btnFecharLogoTime = document.getElementById("btn-fechar-logo-time");
+const logoTimeNomeEl    = document.getElementById("logo-time-nome");
+const logoTimeGrandeEl  = document.getElementById("logo-time-grande");
+
+btnFecharLogoTime.addEventListener("click", fecharModalLogoTime);
+modalLogoTime.addEventListener("click", (e) => { if (e.target === modalLogoTime) fecharModalLogoTime(); });
+
+function abrirModalLogoTime(nome, cor, srcLogo) {
+    logoTimeNomeEl.textContent = nome || "Time";
+    logoTimeGrandeEl.style.borderColor = cor ? `${cor}55` : "";
+    logoTimeGrandeEl.classList.toggle("sem-logo", !srcLogo);
+    logoTimeGrandeEl.innerHTML = srcLogo
+        ? `<img class="logo-time-grande-img" src="${srcLogo}" alt="${nome || "Time"}">`
+        : "";
+    modalLogoTime.classList.remove("oculto");
+}
+
+function fecharModalLogoTime() {
+    modalLogoTime.classList.add("oculto");
+}
+
 function proximoJogoDoTime(timeId) {
     return vjcState.jogos
         .filter(j => j.status === "pendente" && (j.timeA?.id === timeId || j.timeB?.id === timeId))
@@ -2657,7 +2711,7 @@ async function renderizarTimesJogador() {
             getDocs(collection(db, "ligas", vjcState.ligaId, "inscricoes"))
         ]);
 
-        const times = timesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const times = aplicarIdentidadeTimes(timesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
         if (times.length === 0) {
             vjcTimesEl.innerHTML = '<p class="vjc-vazio">Nenhum time formado ainda.</p>';
@@ -2697,7 +2751,11 @@ async function renderizarTimesJogador() {
             const stats = classMap[time.id];
             const pos = stats?.pos;
             const cor = time.cor || "#555";
-            const iniciais = gerarIniciais(time.nome);
+            const corSecundaria = identidadeTime(time.nome)?.corSecundaria || "transparent";
+            const logoAvatarHtml = logoTimeAvatarHtml(
+                time.nome, cor, "vjc-time-avatar vjc-time-avatar-clicavel", "vjc-time-logo",
+                `data-time-nome="${time.nome}" data-time-cor="${cor}" title="Ver logo ampliada"`
+            );
 
             let posLabel = "";
             let posClasse = "";
@@ -2777,9 +2835,9 @@ async function renderizarTimesJogador() {
 
             return `
                 <div class="vjc-time-card ${meuTimeId === time.id ? "vjc-meu-time" : ""}">
-                    <div class="vjc-time-accent-bar" style="background:linear-gradient(90deg,${cor},transparent)"></div>
+                    <div class="vjc-time-accent-bar" style="background:linear-gradient(90deg,${cor},${corSecundaria})"></div>
                     <div class="vjc-time-card-header">
-                        <div class="vjc-time-avatar" style="background:${cor}22;color:${cor};border-color:${cor}55">${iniciais}</div>
+                        ${logoAvatarHtml}
                         <div class="vjc-time-titulo">
                             <span class="vjc-time-card-nome">${time.nome}</span>
                             ${posLabel ? `<span class="vjc-time-pos-badge ${posClasse}">${posLabel}</span>` : ""}
@@ -2805,8 +2863,15 @@ async function renderizarTimesJogador() {
             el.style.maxHeight = el.scrollHeight + "px";
         });
 
-        // Listener de collapse via delegação
+        // Listener de collapse + logo ampliada via delegação
         vjcTimesEl.querySelector(".vjc-times-lista").addEventListener("click", e => {
+            const avatar = e.target.closest(".vjc-time-avatar-clicavel");
+            if (avatar) {
+                const img = avatar.querySelector(".vjc-time-logo");
+                abrirModalLogoTime(avatar.dataset.timeNome, avatar.dataset.timeCor, img ? img.src : null);
+                return;
+            }
+
             const btn = e.target.closest(".vjc-collapse-btn");
             if (!btn) return;
             const card = btn.closest(".vjc-time-card");

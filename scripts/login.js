@@ -12,8 +12,17 @@ import {
     setPersistence,               // define quanto tempo a sessão dura
     browserLocalPersistence,      // sessão permanece mesmo fechando o browser
     browserSessionPersistence,   // sessão encerra ao fechar a aba
-    sendPasswordResetEmail    // esqueci minha senha ? sim (mdsss)
+    sendPasswordResetEmail,   // esqueci minha senha ? sim (mdsss)
+    onAuthStateChanged            // detecta sessão já salva (Lembrar-me)
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+
+// ─────────────────────────────────────────────────────────────
+// Se já existe uma sessão salva (usuário marcou "Lembrar-me" antes),
+// pula o formulário de login e vai direto pro Hub
+// ─────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, (usuario) => {
+    if (usuario) window.location.href = "hub.html";
+});
 
 // ─────────────────────────────────────────────────────────────
 // Helpers de UI

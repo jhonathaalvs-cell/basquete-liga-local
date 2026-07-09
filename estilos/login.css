@@ -7,13 +7,14 @@
 body {
     margin: 0;
     min-height: 100vh;
+    max-width: none;
     display: flex;
     justify-content: center;
     align-items: center;
     background-color: black;
     background-image: url('../imagens/fundo-login.png');
     background-repeat: no-repeat;
-    background-position: center center;
+    background-position: center;
     background-size: cover;
     padding: 16px;
     /* height: 100vh removido — em celulares com teclado aberto o body
