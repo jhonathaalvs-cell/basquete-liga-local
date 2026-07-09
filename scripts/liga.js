@@ -1545,6 +1545,15 @@ function renderizarJogos() {
         porRodada[jogo.rodada].push(jogo);
     });
 
+    // Ordena os jogos de cada rodada por data/horário (não pela ordem de cadastro)
+    Object.values(porRodada).forEach(lista => {
+        lista.sort((a, b) => {
+            const chaveA = `${a.data || "9999-99-99"} ${a.hora || "99:99"}`;
+            const chaveB = `${b.data || "9999-99-99"} ${b.hora || "99:99"}`;
+            return chaveA.localeCompare(chaveB);
+        });
+    });
+
     Object.keys(porRodada).sort((a, b) => +a - +b).forEach(rodada => {
         const secao = document.createElement("div");
         secao.classList.add("cal-rodada");
@@ -2460,6 +2469,15 @@ function renderizarJogosJogador() {
     vjcState.jogos.forEach(jogo => {
         if (!porRodada[jogo.rodada]) porRodada[jogo.rodada] = [];
         porRodada[jogo.rodada].push(jogo);
+    });
+
+    // Ordena os jogos de cada rodada por data/horário (não pela ordem de cadastro)
+    Object.values(porRodada).forEach(lista => {
+        lista.sort((a, b) => {
+            const chaveA = `${a.data || "9999-99-99"} ${a.hora || "99:99"}`;
+            const chaveB = `${b.data || "9999-99-99"} ${b.hora || "99:99"}`;
+            return chaveA.localeCompare(chaveB);
+        });
     });
 
     // Calcular record (V/D) de cada time a partir de todos os jogos
