@@ -18,19 +18,21 @@ import { doc, getDoc, setDoc, updateDoc, deleteField, getDocs, collection }
     from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 // ── Referências aos elementos da página ──────────────────────
-const viewFoto    = document.getElementById("view-foto");
-const viewNome    = document.getElementById("view-nome");
-const viewPosicao = document.getElementById("view-posicao");
-const viewBio     = document.getElementById("view-bio");
-const viewEmail   = document.getElementById("view-email");
-const viewRedes   = document.getElementById("view-redes"); // área de redes na view
+const viewFoto         = document.getElementById("view-foto");
+const viewNome         = document.getElementById("view-nome");
+const viewNomeCompleto = document.getElementById("view-nome-completo");
+const viewPosicao      = document.getElementById("view-posicao");
+const viewBio          = document.getElementById("view-bio");
+const viewEmail        = document.getElementById("view-email");
+const viewRedes        = document.getElementById("view-redes"); // área de redes na view
 
-const editNome       = document.getElementById("edit-nome");
-const editBio        = document.getElementById("edit-bio");
-const editPosicao    = document.getElementById("edit-posicao");
-const editNascimento = document.getElementById("edit-nascimento");
-const inputFoto      = document.getElementById("input-foto");
-const editFotoBtn    = document.getElementById("edit-foto-btn");
+const editNome          = document.getElementById("edit-nome");
+const editNomeCompleto  = document.getElementById("edit-nome-completo");
+const editBio           = document.getElementById("edit-bio");
+const editPosicao       = document.getElementById("edit-posicao");
+const editNascimento    = document.getElementById("edit-nascimento");
+const inputFoto         = document.getElementById("input-foto");
+const editFotoBtn       = document.getElementById("edit-foto-btn");
 
 // Inputs das redes sociais no modo de edição
 const editInstagram = document.getElementById("edit-instagram");
@@ -87,11 +89,13 @@ async function carregarPerfil(usuario) {
 
     if (docSnap.exists()) {
         const dados = docSnap.data();
+        viewNomeCompleto.textContent = dados.nomeCompleto || "";
         viewBio.textContent     = dados.bio      || "Nenhuma bio ainda.";
         viewPosicao.textContent = dados.posicao  || "—";
         dataNascimentoAtual     = dados.dataNascimento || "";
         renderizarRedes(dados.redes || {});
     } else {
+        viewNomeCompleto.textContent = "";
         viewBio.textContent     = "Nenhuma bio ainda.";
         viewPosicao.textContent = "—";
         dataNascimentoAtual     = "";
@@ -103,8 +107,9 @@ async function carregarPerfil(usuario) {
 // Abre o modo edição pré-preenchendo os campos
 // ─────────────────────────────────────────────────────────────
 function abrirEdicao() {
-    editNome.value = viewNome.textContent === "Sem apelido" ? "" : viewNome.textContent;
-    editBio.value  = viewBio.textContent  === "Nenhuma bio ainda." ? "" : viewBio.textContent;
+    editNome.value         = viewNome.textContent === "Sem apelido" ? "" : viewNome.textContent;
+    editNomeCompleto.value = viewNomeCompleto.textContent;
+    editBio.value          = viewBio.textContent  === "Nenhuma bio ainda." ? "" : viewBio.textContent;
 
     const options = Array.from(editPosicao.options);
     const index   = options.findIndex(o => o.value === viewPosicao.textContent);
@@ -137,11 +142,12 @@ function cancelarEdicao() {
 // Salva as alterações
 // ─────────────────────────────────────────────────────────────
 async function salvarAlteracoes() {
-    const novoNome        = editNome.value.trim();
-    const novaBio         = editBio.value.trim();
-    const novaPosicao     = editPosicao.value;
-    const novaNascimento  = editNascimento.value; // "" ou "AAAA-MM-DD"
-    const arquivo         = inputFoto.files[0];
+    const novoNome         = editNome.value.trim();
+    const novoNomeCompleto = editNomeCompleto.value.trim();
+    const novaBio          = editBio.value.trim();
+    const novaPosicao      = editPosicao.value;
+    const novaNascimento   = editNascimento.value; // "" ou "AAAA-MM-DD"
+    const arquivo          = inputFoto.files[0];
 
     // Coleta os @ de cada rede.
     // Se o campo foi preenchido → salva o valor.
@@ -181,8 +187,9 @@ async function salvarAlteracoes() {
         // ── Atualiza nome no Firebase Auth ────────────────────
         await updateProfile(usuarioAtual, { displayName: novoNome });
 
-        // ── Salva bio, posição, data de nascimento e redes no Firestore ─
+        // ── Salva nome completo, bio, posição, nascimento e redes no Firestore ─
         await setDoc(doc(db, "users", usuarioAtual.uid), {
+            nomeCompleto:   novoNomeCompleto,
             bio:            novaBio,
             posicao:        novaPosicao,
             dataNascimento: novaNascimento,
@@ -204,10 +211,11 @@ async function salvarAlteracoes() {
         } catch (e) { /* propagação é best-effort — não bloqueia o save do perfil */ }
 
         // ── Atualiza a view ──────────────────────────────────
-        viewNome.textContent    = novoNome;
-        viewBio.textContent     = novaBio     || "Nenhuma bio ainda.";
-        viewPosicao.textContent = novaPosicao || "—";
-        dataNascimentoAtual     = novaNascimento;
+        viewNome.textContent         = novoNome;
+        viewNomeCompleto.textContent = novoNomeCompleto;
+        viewBio.textContent          = novaBio     || "Nenhuma bio ainda.";
+        viewPosicao.textContent      = novaPosicao || "—";
+        dataNascimentoAtual          = novaNascimento;
         renderizarRedes(redesParaExibir);
 
         secaoEdit.classList.add("oculto");

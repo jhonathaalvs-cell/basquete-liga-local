@@ -115,6 +115,16 @@ body {
     letter-spacing: 0.5px;
 }
 
+.view-nome-completo {
+    font-size: 13px;
+    color: #808a9f;
+    margin-top: -2px;
+}
+
+.view-nome-completo:empty {
+    display: none;
+}
+
 .view-email {
     font-size: 13px;
     color: whitesmoke;

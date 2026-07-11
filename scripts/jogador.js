@@ -70,13 +70,14 @@ async function carregarJogador() {
     }
 
     try {
-        // ── Perfil global: bio, posição, redes, foto oficial, nascimento (users/{uid}) ─
-        let perfil = { bio: "", posicao: "", redes: {}, fotoOficial: null, dataNascimento: "" };
+        // ── Perfil global: nome completo, bio, posição, redes, foto, nascimento (users/{uid}) ─
+        let perfil = { nomeCompleto: "", bio: "", posicao: "", redes: {}, fotoOficial: null, dataNascimento: "" };
         try {
             const perfilSnap = await getDoc(doc(db, "users", uid));
             if (perfilSnap.exists()) {
                 const dados = perfilSnap.data();
                 perfil = {
+                    nomeCompleto:   dados.nomeCompleto   || "",
                     bio:            dados.bio            || "",
                     posicao:        dados.posicao        || "",
                     redes:          dados.redes          || {},
@@ -203,17 +204,20 @@ function renderizarJogador(atual, temporadas, perfil) {
     telaLoading.classList.add("oculto");
     conteudoEl.classList.remove("oculto");
 
-    document.title = `${atual.nomeJogador} — Jogador`;
+    // Nome completo (Perfil) tem prioridade sobre o apelido registrado na liga
+    const nomeExibido = perfil.nomeCompleto || atual.nomeJogador;
+
+    document.title = `${nomeExibido} — Jogador`;
 
     const cor = atual.timeCor || "#555";
 
     // Banner
     jrBanner.style.borderTopColor = cor;
 
-    aplicarAvatarJogador(jrAvatar, perfil.fotoOficial, atual.nomeJogador, cor, "jr-avatar-img");
+    aplicarAvatarJogador(jrAvatar, perfil.fotoOficial, nomeExibido, cor, "jr-avatar-img");
     jrAvatar.style.borderColor = `${cor}55`;
 
-    jrNome.textContent         = atual.nomeJogador;
+    jrNome.textContent         = nomeExibido;
     jrTimeDot.style.background = cor;
     jrTimeNome.textContent     = atual.timeNome;
 

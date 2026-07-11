@@ -142,13 +142,17 @@ async function carregarJogadores() {
                 const jogos = jogosPorTime[dados.timeId] || 0;
                 const vit   = vitoriasPoTime[dados.timeId] || 0;
 
-                // fotoOficial só existe em users/{uid} (não é propagada pra inscrição),
-                // então busca o perfil de cada jogador pra pegar ela.
+                // fotoOficial e nomeCompleto só existem em users/{uid} (não são propagados
+                // pra inscrição), então busca o perfil de cada jogador pra pegar eles.
+                // nomeCompleto tem prioridade sobre o apelido (nomeJogador) registrado na liga.
                 let fotoOficial = null;
+                let nomeCompleto = "";
                 try {
                     const perfilSnap = await getDoc(doc(db, "users", d.id));
                     if (perfilSnap.exists()) {
-                        fotoOficial = perfilSnap.data().fotoOficial || null;
+                        const perfilData = perfilSnap.data();
+                        fotoOficial  = perfilData.fotoOficial  || null;
+                        nomeCompleto = perfilData.nomeCompleto || "";
                     }
                 } catch (e) {
                     console.warn("[jogadores] sem permissão para ler perfil de", d.id, "—", e.code);
@@ -161,7 +165,7 @@ async function carregarJogadores() {
 
                 return {
                     uid:          d.id,
-                    nome:         dados.nomeJogador || "Jogador",
+                    nome:         nomeCompleto || dados.nomeJogador || "Jogador",
                     posicao:      dados.posicao || "",
                     timeNome:     time ? time.nome : "Sem time",
                     timeCor:      time ? time.cor  : "#444",
