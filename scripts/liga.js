@@ -8,7 +8,7 @@
 
 import { auth, db } from "./firebase-config.js";
 import { initPlayoffs, calcularClassificacaoLista } from "./liga/playoffs.js";
-import { corTime, identidadeTime, logoTimeAvatarHtml } from "./franquias.js";
+import { corTime, identidadeTime, logoTimeAvatarHtml, gerarIniciais } from "./franquias.js";
 
 import {
     onAuthStateChanged,
@@ -2669,13 +2669,7 @@ function renderizarJogosJogador() {
 // ─────────────────────────────────────────────────────────────
 // Helpers para renderizarTimesJogador
 // ─────────────────────────────────────────────────────────────
-function gerarIniciais(nome) {
-    const palavras = (nome || "").trim().split(/\s+/);
-    if (palavras.length === 1) return palavras[0].substring(0, 2).toUpperCase();
-    return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
-}
-
-// Logo e cor do time (identidade de franquia) vêm de ./franquias.js
+// gerarIniciais() e a identidade de franquia (logo/cor) vêm de ./franquias.js
 // — casam o nome do time com um arquivo em imagens/franquias/ e/ou
 // uma cor cadastrada (ex: "Black Panthers" → roxo + black_panthers.jpeg).
 

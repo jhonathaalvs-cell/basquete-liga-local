@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogador</title>
+    <link rel="shortcut icon" href="imagens/favicon.png" type="image/png">
+    <link rel="stylesheet" href="estilos/global.css">
+    <link rel="stylesheet" href="estilos/jogador.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="logo-area">
+            <img src="imagens/logo-liga.png" alt="icone" class="logo-app">
+        </div>
+    </header>
+
+    <nav class="nav-bar">
+        <a href="hub.html" class="link">HUB</a>
+        <a href="liga.html" class="link">LIGA</a>
+        <a href="jogadores.html" class="link ativo">JOGADORES</a>
+        <a href="perfil.html" class="link">PERFIL</a>
+    </nav>
+
+    <main class="jr-container">
+
+        <div id="tela-loading" class="jr-loading">Carregando jogador...</div>
+
+        <div id="tela-nao-encontrado" class="jr-loading oculto">Jogador não encontrado.</div>
+
+        <div id="conteudo-jogador" class="oculto">
+
+            <a href="jogadores.html" class="jr-voltar">
+                <i class="fa-solid fa-arrow-left"></i> Voltar
+            </a>
+
+            <!-- Banner -->
+            <section class="jr-banner">
+                <div id="jr-avatar" class="jr-avatar"></div>
+                <h1 id="jr-nome" class="jr-nome"></h1>
+                <div class="jr-time">
+                    <span id="jr-time-dot" class="jr-time-dot"></span>
+                    <span id="jr-time-nome"></span>
+                </div>
+                <span id="jr-pos" class="jr-pos oculto"></span>
+                <span id="jr-idade" class="jr-idade oculto"></span>
+            </section>
+
+            <!-- Stats da temporada atual -->
+            <section class="jr-secao">
+                <h2 class="jr-secao-titulo">Temporada Atual</h2>
+                <p id="jr-inscrito-atual" class="jr-inscrito-atual oculto"></p>
+                <div id="jr-stats-atual" class="jr-stats-grid"></div>
+            </section>
+
+            <!-- Bio -->
+            <section id="jr-secao-bio" class="jr-secao oculto">
+                <h2 class="jr-secao-titulo">Bio</h2>
+                <p id="jr-bio" class="jr-bio"></p>
+            </section>
+
+            <!-- Redes sociais -->
+            <section id="jr-secao-redes" class="jr-secao oculto">
+                <h2 class="jr-secao-titulo">Redes Sociais</h2>
+                <div id="jr-redes" class="jr-redes"></div>
+            </section>
+
+            <!-- Histórico de temporadas -->
+            <section id="jr-secao-historico" class="jr-secao oculto">
+                <h2 class="jr-secao-titulo">Histórico de Temporadas</h2>
+                <div id="jr-historico" class="jr-historico"></div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <script type="module" src="scripts/jogador.js"></script>
+</body>
+</html>

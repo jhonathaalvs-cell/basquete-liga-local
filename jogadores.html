@@ -40,6 +40,33 @@
 
     </main>
 
+    <!-- ════════════════════════════════════
+         MODAL RÁPIDO DO JOGADOR
+         Abre ao clicar em um card na lista (fora dos chips de
+         redes e do botão de mostrar/esconder bio)
+    ════════════════════════════════════ -->
+    <div id="modal-jogador" class="modal-overlay oculto">
+        <div class="modal-caixa modal-caixa-pequena">
+            <div class="modal-header">
+                <h3 class="modal-titulo">Jogador</h3>
+                <button id="btn-fechar-jogador" class="btn-fechar-modal" aria-label="Fechar">✕</button>
+            </div>
+            <div class="modal-corpo mj-corpo">
+                <div id="mj-avatar" class="mj-avatar"></div>
+                <div id="mj-nome" class="mj-nome"></div>
+                <div class="mj-time">
+                    <span id="mj-time-dot" class="mj-time-dot"></span>
+                    <span id="mj-time-nome"></span>
+                </div>
+                <span id="mj-pos" class="mj-pos oculto"></span>
+
+                <div id="mj-stats-grid" class="mj-stats-grid"></div>
+
+                <a id="mj-btn-perfil" class="mj-btn-perfil" href="#">Ver perfil completo →</a>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="scripts/jogadores.js"></script>
 </body>
 </html>

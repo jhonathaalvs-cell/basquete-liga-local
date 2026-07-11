@@ -25,11 +25,12 @@ const viewBio     = document.getElementById("view-bio");
 const viewEmail   = document.getElementById("view-email");
 const viewRedes   = document.getElementById("view-redes"); // área de redes na view
 
-const editNome    = document.getElementById("edit-nome");
-const editBio     = document.getElementById("edit-bio");
-const editPosicao = document.getElementById("edit-posicao");
-const inputFoto   = document.getElementById("input-foto");
-const editFotoBtn = document.getElementById("edit-foto-btn");
+const editNome       = document.getElementById("edit-nome");
+const editBio        = document.getElementById("edit-bio");
+const editPosicao    = document.getElementById("edit-posicao");
+const editNascimento = document.getElementById("edit-nascimento");
+const inputFoto      = document.getElementById("input-foto");
+const editFotoBtn    = document.getElementById("edit-foto-btn");
 
 // Inputs das redes sociais no modo de edição
 const editInstagram = document.getElementById("edit-instagram");
@@ -50,6 +51,7 @@ const secaoEdit   = document.getElementById("secao-edit");
 const msgFeedback = document.getElementById("msg-feedback");
 
 let usuarioAtual = null;
+let dataNascimentoAtual = ""; // sem campo próprio na view — guardada aqui pra pré-preencher a edição
 
 // ─────────────────────────────────────────────────────────────
 // onAuthStateChanged: dispara sempre que o estado de login muda
@@ -87,10 +89,12 @@ async function carregarPerfil(usuario) {
         const dados = docSnap.data();
         viewBio.textContent     = dados.bio      || "Nenhuma bio ainda.";
         viewPosicao.textContent = dados.posicao  || "—";
+        dataNascimentoAtual     = dados.dataNascimento || "";
         renderizarRedes(dados.redes || {});
     } else {
         viewBio.textContent     = "Nenhuma bio ainda.";
         viewPosicao.textContent = "—";
+        dataNascimentoAtual     = "";
         renderizarRedes({});
     }
 }
@@ -105,6 +109,8 @@ function abrirEdicao() {
     const options = Array.from(editPosicao.options);
     const index   = options.findIndex(o => o.value === viewPosicao.textContent);
     if (index >= 0) editPosicao.selectedIndex = index;
+
+    editNascimento.value = dataNascimentoAtual;
 
     // Pré-preenche os inputs de redes com os valores atuais da view
     REDES.forEach(rede => {
@@ -131,10 +137,11 @@ function cancelarEdicao() {
 // Salva as alterações
 // ─────────────────────────────────────────────────────────────
 async function salvarAlteracoes() {
-    const novoNome    = editNome.value.trim();
-    const novaBio     = editBio.value.trim();
-    const novaPosicao = editPosicao.value;
-    const arquivo     = inputFoto.files[0];
+    const novoNome        = editNome.value.trim();
+    const novaBio         = editBio.value.trim();
+    const novaPosicao     = editPosicao.value;
+    const novaNascimento  = editNascimento.value; // "" ou "AAAA-MM-DD"
+    const arquivo         = inputFoto.files[0];
 
     // Coleta os @ de cada rede.
     // Se o campo foi preenchido → salva o valor.
@@ -174,11 +181,12 @@ async function salvarAlteracoes() {
         // ── Atualiza nome no Firebase Auth ────────────────────
         await updateProfile(usuarioAtual, { displayName: novoNome });
 
-        // ── Salva bio, posição e redes no Firestore ────────────────────
+        // ── Salva bio, posição, data de nascimento e redes no Firestore ─
         await setDoc(doc(db, "users", usuarioAtual.uid), {
-            bio:     novaBio,
-            posicao: novaPosicao,
-            redes:   novasRedes
+            bio:            novaBio,
+            posicao:        novaPosicao,
+            dataNascimento: novaNascimento,
+            redes:          novasRedes
         }, { merge: true });
 
         // ── Propaga redes e bio para todas as inscrições do jogador ─────
@@ -199,6 +207,7 @@ async function salvarAlteracoes() {
         viewNome.textContent    = novoNome;
         viewBio.textContent     = novaBio     || "Nenhuma bio ainda.";
         viewPosicao.textContent = novaPosicao || "—";
+        dataNascimentoAtual     = novaNascimento;
         renderizarRedes(redesParaExibir);
 
         secaoEdit.classList.add("oculto");

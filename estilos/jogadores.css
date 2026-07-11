@@ -92,6 +92,7 @@
     overflow: hidden;
     transition: border-color 0.25s, box-shadow 0.25s;
     animation: jogFadeUp 0.35s ease both;
+    cursor: pointer;
 }
 
 .jog-card:hover {
@@ -102,12 +103,6 @@
 @keyframes jogFadeUp {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ─ Accent bar ─ */
-.jog-accent-bar {
-    height: 3px;
-    width: 100%;
 }
 
 /* ─ Header ─ */
@@ -130,11 +125,12 @@
     font-weight: 900;
     flex-shrink: 0;
     border: 2px solid rgba(255, 255, 255, 0.12);
+    overflow: hidden;
 }
 
-.jog-info {
-    flex: 1;
-    min-width: 0;
+/* Foto oficial do jogador (quando existe) no lugar das iniciais */
+.jog-avatar-foto {
+    object-fit: cover;
 }
 
 .jog-nome {
@@ -149,148 +145,16 @@
     line-height: 1.15;
 }
 
-.jog-time-nome {
-    font-size: 0.78rem;
-    color: rgba(237, 237, 239, 0.5);
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.jog-time-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.jog-pos {
-    display: inline-block;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 2px 7px;
-    border-radius: 4px;
-    margin-top: 4px;
-    white-space: nowrap;
-}
-
-/* ─ Bio ─ */
-.jog-bio-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0 16px 10px;
-    padding: 5px 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    color: rgba(237, 237, 239, 0.7);
-    font-size: 0.7rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-.jog-bio-toggle:hover {
-    background: rgba(255, 255, 255, 0.09);
-    color: white;
-}
-
-.jog-bio-toggle i {
-    font-size: 0.6rem;
-}
-
-.jog-bio {
-    font-size: 0.78rem;
-    line-height: 1.4;
-    color: rgba(237, 237, 239, 0.65);
-    padding: 0 16px 12px;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-/* ─ Stats strip ─ */
-.jog-stats-strip {
-    display: flex;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.jog-stat-item {
-    flex: 1;
-    padding: 0.55rem 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-}
-
-.jog-stat-item + .jog-stat-item {
-    border-left: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.jog-stat-val {
-    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: white;
-    line-height: 1;
-}
-
-.jog-stat-label {
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: rgba(142, 145, 150, 0.8);
-}
-
-/* Win % colors */
+/* Win % colors (reaproveitadas no modal rápido: .mj-stat-val.jog-pct-*) */
 .jog-pct-alto  { color: #1fc24b; }
 .jog-pct-medio { color: #f0a500; }
 .jog-pct-baixo { color: #e74c3c; }
 .jog-pct-nd    { color: rgba(142, 145, 150, 0.6); }
 
-/* Destaques color */
+/* Destaques color (reaproveitada no modal rápido: .mj-stat-val.jog-stat-destaque) */
 .jog-stat-destaque { color: #c8950a; }
 
-/* ════ REDES SOCIAIS */
-.jog-redes {
-    display: flex;
-    gap: 6px;
-    padding: 10px 16px;
-    flex-wrap: wrap;
-}
-
-.jog-rede-chip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 13px;
-    color: color-mix(in srgb, var(--rede-cor, white) 80%, white);
-    text-decoration: none;
-    transition: background 0.2s, transform 0.15s;
-    flex-shrink: 0;
-}
-
-.jog-rede-chip:hover {
-    background: color-mix(in srgb, var(--rede-cor, white) 25%, rgba(255, 255, 255, 0.05));
-    transform: scale(1.2);
-    border-color: color-mix(in srgb, var(--rede-cor, white) 60%, transparent);
-}
-
-/* ════ BADGES DE POSIÇÃO */
+/* ════ BADGES DE POSIÇÃO (reaproveitadas no modal rápido: .mj-pos.jog-pos-*) */
 .jog-pos-pg { color: #82d8db; background: rgba(130, 216, 219, 0.1);  border: 1px solid rgba(130, 216, 219, 0.25); }
 .jog-pos-sg { color: #ededef; background: rgba(237, 237, 239, 0.08); border: 1px solid rgba(237, 237, 239, 0.15); }
 .jog-pos-sf { color: #dfa870; background: rgba(223, 168, 112, 0.1);  border: 1px solid rgba(223, 168, 112, 0.25); }
@@ -312,5 +176,214 @@
 
     .jog-nome {
         font-size: 0.95rem;
+    }
+}
+
+/* ════════════════════════════════════════════════════
+   MODAL RÁPIDO DO JOGADOR
+   ════════════════════════════════════════════════════ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    padding: 16px;
+}
+
+.modal-caixa {
+    background-color: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-caixa-pequena { max-width: 380px; width: 95%; }
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 0;
+    background-color: #161b22;
+    z-index: 1;
+}
+
+.modal-titulo {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(237, 237, 239, 0.6);
+}
+
+.btn-fechar-modal {
+    background: none;
+    border: none;
+    color: rgba(237, 237, 239, 0.4);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+}
+
+.btn-fechar-modal:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.modal-corpo {
+    padding: 20px;
+}
+
+/* ─ Conteúdo do jogador ─ */
+.mj-corpo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+}
+
+.mj-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 900;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 6px;
+    overflow: hidden;
+}
+
+/* Foto oficial do jogador (quando existe) no lugar das iniciais */
+.mj-avatar-foto {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mj-nome {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 0.02em;
+}
+
+.mj-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: rgba(237, 237, 239, 0.6);
+}
+
+.mj-time-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.mj-pos {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 5px;
+    margin-top: 4px;
+}
+
+.mj-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin-top: 16px;
+}
+
+.mj-stat-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.mj-stat-val {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+
+.mj-stat-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(142, 145, 150, 0.8);
+    text-align: center;
+}
+
+.mj-btn-perfil {
+    display: block;
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    background: var(--cor2);
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    transition: opacity 0.2s;
+}
+
+.mj-btn-perfil:hover {
+    opacity: 0.85;
+}
+
+@media (max-width: 480px) {
+    .modal-caixa {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        position: fixed;
+        bottom: 0;
+        max-height: 90vh;
+    }
+
+    .modal-overlay {
+        align-items: flex-end;
+    }
+
+    .mj-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }

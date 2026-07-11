@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { auth, db } from "./firebase-config.js";
-import { corTime } from "./franquias.js";
+import { corTime, avatarJogadorHtml, aplicarAvatarJogador } from "./franquias.js";
 
 import {
     onAuthStateChanged
@@ -27,6 +27,17 @@ const telaLoading   = document.getElementById("tela-loading");
 const filtrosEl     = document.getElementById("filtros");
 const selectLiga    = document.getElementById("select-liga");
 const listaEl       = document.getElementById("lista-jogadores");
+
+// ─── DOM refs — modal rápido do jogador ───────────────────────
+const modalJogador   = document.getElementById("modal-jogador");
+const btnFecharModal = document.getElementById("btn-fechar-jogador");
+const mjAvatar       = document.getElementById("mj-avatar");
+const mjNome         = document.getElementById("mj-nome");
+const mjTimeDot      = document.getElementById("mj-time-dot");
+const mjTimeNome     = document.getElementById("mj-time-nome");
+const mjPos          = document.getElementById("mj-pos");
+const mjStatsGrid    = document.getElementById("mj-stats-grid");
+const mjBtnPerfil    = document.getElementById("mj-btn-perfil");
 
 // ─── Estado ──────────────────────────────────────────────────
 // Cada item: { ligaId, ligaNome, ligaStatus, jogadores: [{nome, posicao, timeNome, timeCor}] }
@@ -124,28 +135,23 @@ async function carregarJogadores() {
             });
 
             // Monta lista de jogadores com dados do time
-            // Promise.all para buscar o perfil (redes) de cada jogador em paralelo
+            // Promise.all para buscar a foto oficial de cada jogador em paralelo
             const jogadores = await Promise.all(inscricoesSnap.docs.map(async d => {
                 const dados  = d.data();
                 const time   = timesMap[dados.timeId] || null;
                 const jogos = jogosPorTime[dados.timeId] || 0;
                 const vit   = vitoriasPoTime[dados.timeId] || 0;
 
-                // Redes e bio: lê da inscrição primeiro (propagado pelo perfil.js ao salvar).
-                // Cai para users/{uid} como fallback para jogadores que ainda não resalvaram.
-                let redes = dados.redes || {};
-                let bio   = dados.bio || "";
-                if (Object.keys(redes).length === 0 || !bio) {
-                    try {
-                        const perfilSnap = await getDoc(doc(db, "users", d.id));
-                        if (perfilSnap.exists()) {
-                            const perfilData = perfilSnap.data();
-                            if (Object.keys(redes).length === 0) redes = perfilData.redes || {};
-                            if (!bio) bio = perfilData.bio || "";
-                        }
-                    } catch (e) {
-                        console.warn("[jogadores] sem permissão para ler perfil de", d.id, "—", e.code);
+                // fotoOficial só existe em users/{uid} (não é propagada pra inscrição),
+                // então busca o perfil de cada jogador pra pegar ela.
+                let fotoOficial = null;
+                try {
+                    const perfilSnap = await getDoc(doc(db, "users", d.id));
+                    if (perfilSnap.exists()) {
+                        fotoOficial = perfilSnap.data().fotoOficial || null;
                     }
+                } catch (e) {
+                    console.warn("[jogadores] sem permissão para ler perfil de", d.id, "—", e.code);
                 }
 
                 const statsP = pontosMap[d.id] || { totalPontos: 0, jogosComPontos: 0 };
@@ -165,8 +171,7 @@ async function carregarJogadores() {
                     pctVitorias:  jogos > 0 ? Math.round((vit / jogos) * 100) : null,
                     totalPontos:  statsP.totalPontos,
                     mediaPontos,
-                    redes,
-                    bio
+                    fotoOficial
                 };
             }));
 
@@ -198,31 +203,80 @@ async function carregarJogadores() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Alterna mostrar/esconder a bio de um jogador (delegado no
-// container, já que os cards são recriados a cada filtro)
+// Clique num card da lista (delegado, já que os cards são
+// recriados a cada filtro) → abre o modal rápido do jogador
 // ─────────────────────────────────────────────────────────────
 listaEl.addEventListener("click", (evento) => {
-    const botao = evento.target.closest(".jog-bio-toggle");
-    if (!botao) return;
+    const card = evento.target.closest(".jog-card");
+    if (!card) return;
 
-    const bioEl = botao.nextElementSibling;
-    if (!bioEl || !bioEl.classList.contains("jog-bio")) return;
-
-    const aberta = bioEl.classList.toggle("oculto") === false;
-    botao.setAttribute("aria-expanded", String(aberta));
-    botao.innerHTML = aberta
-        ? '<i class="fa-solid fa-chevron-up"></i> Ocultar bio'
-        : '<i class="fa-solid fa-chevron-down"></i> Ver bio';
+    abrirModalJogador(card.dataset.uid, card.dataset.ligaId);
 });
 
 // ─────────────────────────────────────────────────────────────
-// gerarIniciais(nome) → "AB" a partir do nome do jogador
+// abrirModalJogador(uid, ligaId)
+// Preenche e mostra o modal rápido a partir dos dados já
+// carregados em memória (todasLigas) — sem nova consulta ao Firestore
 // ─────────────────────────────────────────────────────────────
-function gerarIniciais(nome) {
-    const palavras = (nome || "").trim().split(/\s+/);
-    if (palavras.length === 1) return palavras[0].substring(0, 2).toUpperCase();
-    return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
+function abrirModalJogador(uid, ligaId) {
+    const liga     = todasLigas.find(l => l.ligaId === ligaId);
+    const jogador  = liga?.jogadores.find(j => j.uid === uid);
+    if (!jogador) return;
+
+    const cor = jogador.timeCor || "#555";
+
+    aplicarAvatarJogador(mjAvatar, jogador.fotoOficial, jogador.nome, cor, "mj-avatar-foto");
+
+    mjNome.textContent     = jogador.nome;
+    mjTimeDot.style.background = cor;
+    mjTimeNome.textContent = jogador.timeNome;
+
+    if (jogador.posicao) {
+        mjPos.textContent = jogador.posicao;
+        mjPos.className   = `mj-pos ${posClasse(jogador.posicao)}`;
+    } else {
+        mjPos.classList.add("oculto");
+    }
+
+    const pct   = jogador.pctVitorias;
+    const pctCl = pct !== null ? pctClasse(pct) : "jog-pct-nd";
+    const pctVal = pct !== null ? `${pct}%` : "—";
+
+    mjStatsGrid.innerHTML = `
+        <div class="mj-stat-item">
+            <span class="mj-stat-val">${jogador.jogosCount}</span>
+            <span class="mj-stat-label">Jogos</span>
+        </div>
+        <div class="mj-stat-item">
+            <span class="mj-stat-val ${pctCl}">${pctVal}</span>
+            <span class="mj-stat-label">Vitórias</span>
+        </div>
+        <div class="mj-stat-item">
+            <span class="mj-stat-val jog-stat-destaque">${jogador.totalPontos}</span>
+            <span class="mj-stat-label">Pts total</span>
+        </div>
+        <div class="mj-stat-item">
+            <span class="mj-stat-val">${jogador.mediaPontos}</span>
+            <span class="mj-stat-label">Pts/jogo</span>
+        </div>
+    `;
+
+    mjBtnPerfil.href = `jogador.html?uid=${encodeURIComponent(uid)}`;
+
+    modalJogador.classList.remove("oculto");
 }
+
+// ─────────────────────────────────────────────────────────────
+// fecharModalJogador()
+// ─────────────────────────────────────────────────────────────
+function fecharModalJogador() {
+    modalJogador.classList.add("oculto");
+}
+
+btnFecharModal.addEventListener("click", fecharModalJogador);
+modalJogador.addEventListener("click", (evento) => {
+    if (evento.target === modalJogador) fecharModalJogador();
+});
 
 // ─────────────────────────────────────────────────────────────
 // renderizarLista()
@@ -254,57 +308,19 @@ function renderizarLista() {
         const secao = document.createElement("div");
         secao.className = "jog-secao";
 
+        // Card minimalista: só foto + nome. Time, posição, stats, bio e
+        // redes ficam pro modal rápido (clique no card) e pra página
+        // completa do jogador (jogador.html).
         const cardsHTML = liga.jogadores.map(j => {
-            const iniciais    = gerarIniciais(j.nome);
-            const cor         = j.timeCor || "#555";
-            const pct         = j.pctVitorias;
-            const pctCl       = pct !== null ? pctClasse(pct) : "jog-pct-nd";
-            const pctVal      = pct !== null ? `${pct}%` : "—";
-            const redesHtml   = renderRedesCard(j.redes);
-            const bioHtml     = j.bio
-                ? `<button type="button" class="jog-bio-toggle" aria-expanded="false">
-                       <i class="fa-solid fa-chevron-down"></i> Ver bio
-                   </button>
-                   <p class="jog-bio oculto">${escapeHtml(j.bio)}</p>`
-                : "";
-            const pontosItem  = j.totalPontos > 0
-                ? `<div class="jog-stat-item">
-                       <span class="jog-stat-val jog-stat-destaque">${j.totalPontos}</span>
-                       <span class="jog-stat-label">Pts total</span>
-                   </div>
-                   <div class="jog-stat-item">
-                       <span class="jog-stat-val">${j.mediaPontos}</span>
-                       <span class="jog-stat-label">Pts/jogo</span>
-                   </div>`
-                : "";
+            const cor        = j.timeCor || "#555";
+            const avatarHtml = avatarJogadorHtml(j.fotoOficial, j.nome, cor, "jog-avatar", "jog-avatar-foto");
 
             return `
-                <div class="jog-card">
-                    <div class="jog-accent-bar" style="background:${cor}"></div>
+                <div class="jog-card" data-uid="${j.uid}" data-liga-id="${liga.ligaId}">
                     <div class="jog-card-header">
-                        <div class="jog-avatar" style="background:${cor}22;color:${cor}">${iniciais}</div>
-                        <div class="jog-info">
-                            <div class="jog-nome">${j.nome}</div>
-                            <div class="jog-time-nome">
-                                <span class="jog-time-dot" style="background:${cor}"></span>
-                                ${j.timeNome}
-                            </div>
-                            ${j.posicao ? `<span class="jog-pos ${posClasse(j.posicao)}">${j.posicao}</span>` : ""}
-                        </div>
+                        ${avatarHtml}
+                        <div class="jog-nome">${j.nome}</div>
                     </div>
-                    ${bioHtml}
-                    <div class="jog-stats-strip">
-                        <div class="jog-stat-item">
-                            <span class="jog-stat-val ${pctCl}">${pctVal}</span>
-                            <span class="jog-stat-label">Vitórias</span>
-                        </div>
-                        <div class="jog-stat-item">
-                            <span class="jog-stat-val">${j.jogosCount}</span>
-                            <span class="jog-stat-label">Jogos</span>
-                        </div>
-                        ${pontosItem}
-                    </div>
-                    ${redesHtml}
                 </div>
             `;
         }).join("");
@@ -321,37 +337,6 @@ function renderizarLista() {
 
         listaEl.appendChild(secao);
     });
-}
-
-// ─────────────────────────────────────────────────────────────
-// Configuração das redes sociais (mesmo padrão do perfil.js)
-// ─────────────────────────────────────────────────────────────
-const REDES_CONFIG = [
-    { id: "instagram", icone: "fa-brands fa-instagram", label: "Instagram", cor: "#C13584", url: u => `https://instagram.com/${u}` },
-    { id: "tiktok",    icone: "fa-brands fa-tiktok",    label: "TikTok",    cor: "#010101", url: u => `https://tiktok.com/@${u}` },
-    { id: "twitter",   icone: "fa-brands fa-x-twitter", label: "Twitter/X", cor: "#1DA1F2", url: u => `https://twitter.com/${u}` },
-    { id: "youtube",   icone: "fa-brands fa-youtube",   label: "YouTube",   cor: "#FF0000", url: u => `https://youtube.com/@${u}` },
-];
-
-// Retorna o HTML dos chips de redes para um card de jogador
-function renderRedesCard(redes) {
-    if (!redes || Object.keys(redes).length === 0) return "";
-    const chips = REDES_CONFIG
-        .filter(r => redes[r.id])
-        .map(r => `<a class="jog-rede-chip" href="${r.url(redes[r.id])}" target="_blank" rel="noopener noreferrer" title="${r.label}: @${redes[r.id]}" style="--rede-cor:${r.cor}"><i class="${r.icone}"></i></a>`)
-        .join("");
-    if (!chips) return "";
-    return `<div class="jog-redes">${chips}</div>`;
-}
-
-// ─────────────────────────────────────────────────────────────
-// escapeHtml(texto) → escapa caracteres HTML antes de inserir
-// texto livre (bio) no innerHTML dos cards
-// ─────────────────────────────────────────────────────────────
-function escapeHtml(texto) {
-    const div = document.createElement("div");
-    div.textContent = texto;
-    return div.innerHTML;
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -1,0 +1,360 @@
+@charset "UTF-8";
+
+/* jogador.css — página individual de jogador (jogador.html) */
+/* Depende de: global.css (variáveis, reset, html, body, header, navbar) */
+
+/* ════ CONTAINER PRINCIPAL */
+.jr-container {
+    width: 100%;
+    max-width: 750px;
+    margin: 0 auto;
+    padding: 0 16px 60px;
+}
+
+.jr-loading {
+    text-align: center;
+    color: white;
+    font-size: 14px;
+    padding: 60px 0;
+}
+
+/* ════ VOLTAR */
+.jr-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(237, 237, 239, 0.6);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+}
+
+.jr-voltar:hover {
+    color: white;
+}
+
+/* ════ BANNER */
+.jr-banner {
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-top: 4px solid rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    padding: 28px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    margin-bottom: 24px;
+}
+
+.jr-avatar {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 2rem;
+    font-weight: 900;
+    border: 3px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+/* Foto oficial do jogador (quando existe) no lugar das iniciais */
+.jr-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.jr-nome {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 0.02em;
+}
+
+.jr-time {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.95rem;
+    color: rgba(237, 237, 239, 0.6);
+}
+
+.jr-time-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.jr-pos {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-top: 6px;
+}
+
+.jr-idade {
+    font-size: 0.78rem;
+    color: rgba(237, 237, 239, 0.5);
+    margin-top: 6px;
+}
+
+/* ════ SEÇÕES */
+.jr-secao {
+    margin-bottom: 24px;
+}
+
+.jr-secao-titulo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: white;
+    margin-bottom: 12px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.jr-secao-titulo::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.jr-inscrito-atual {
+    font-size: 0.75rem;
+    color: rgba(237, 237, 239, 0.5);
+    margin: -4px 0 12px;
+    padding: 0 4px;
+}
+
+/* ════ STATS DA TEMPORADA ATUAL */
+.jr-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.jr-stat-item {
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 14px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.jr-stat-val {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+
+.jr-stat-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(142, 145, 150, 0.8);
+    text-align: center;
+}
+
+.jr-stat-destaque {
+    color: #c8950a;
+}
+
+/* ════ BIO */
+.jr-bio {
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 16px;
+    color: rgba(237, 237, 239, 0.75);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ════ REDES SOCIAIS */
+.jr-redes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.jr-rede-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid color-mix(in srgb, var(--rede-cor, white) 40%, transparent);
+    color: color-mix(in srgb, var(--rede-cor, white) 80%, white);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 20px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.jr-rede-chip:hover {
+    background: color-mix(in srgb, var(--rede-cor, white) 20%, rgba(255, 255, 255, 0.05));
+    transform: translateY(-1px);
+}
+
+/* ════ HISTÓRICO DE TEMPORADAS */
+.jr-historico {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.jr-hist-card {
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+}
+
+.jr-hist-accent {
+    width: 4px;
+    flex-shrink: 0;
+}
+
+.jr-hist-corpo {
+    flex: 1;
+    padding: 14px 16px;
+    min-width: 0;
+}
+
+.jr-hist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.jr-hist-liga {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jr-hist-status {
+    font-size: 0.65rem;
+    color: rgba(237, 237, 239, 0.4);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.jr-hist-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: rgba(237, 237, 239, 0.55);
+    margin-bottom: 4px;
+}
+
+.jr-hist-inscrito {
+    font-size: 0.68rem;
+    color: rgba(237, 237, 239, 0.4);
+    margin-bottom: 10px;
+}
+
+.jr-hist-time-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.jr-hist-stats {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.jr-hist-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.jr-hist-val {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+}
+
+.jr-hist-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(142, 145, 150, 0.7);
+}
+
+/* Win % colors — reaproveitadas em stats e histórico */
+.jr-pct-alto  { color: #1fc24b; }
+.jr-pct-medio { color: #f0a500; }
+.jr-pct-baixo { color: #e74c3c; }
+.jr-pct-nd    { color: rgba(142, 145, 150, 0.6); }
+
+/* ════ BADGES DE POSIÇÃO */
+.jr-pos-pg { color: #82d8db; background: rgba(130, 216, 219, 0.1);  border: 1px solid rgba(130, 216, 219, 0.25); }
+.jr-pos-sg { color: #ededef; background: rgba(237, 237, 239, 0.08); border: 1px solid rgba(237, 237, 239, 0.15); }
+.jr-pos-sf { color: #dfa870; background: rgba(223, 168, 112, 0.1);  border: 1px solid rgba(223, 168, 112, 0.25); }
+.jr-pos-pf { color: #e8845e; background: rgba(232, 132, 94, 0.1);   border: 1px solid rgba(232, 132, 94, 0.25); }
+.jr-pos-c  { color: #f0c87a; background: rgba(240, 200, 122, 0.1);  border: 1px solid rgba(240, 200, 122, 0.25); }
+.jr-pos-nd { color: rgba(237, 237, 239, 0.3); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
+
+@media (max-width: 480px) {
+    .jr-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .jr-avatar {
+        width: 76px;
+        height: 76px;
+        font-size: 1.6rem;
+    }
+
+    .jr-nome {
+        font-size: 1.4rem;
+    }
+
+    .jr-hist-stats {
+        gap: 10px;
+    }
+}

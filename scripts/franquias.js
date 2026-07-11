@@ -56,6 +56,14 @@ export function corTime(nome, corPadrao) {
     return identidadeTime(nome)?.cor || corPadrao;
 }
 
+// gerarIniciais(nome) → "AB" a partir de um nome (jogador ou time).
+// Compartilhado entre jogadores.js, jogador.js e liga.js.
+export function gerarIniciais(nome) {
+    const palavras = (nome || "").trim().split(/\s+/);
+    if (palavras.length === 1) return palavras[0].substring(0, 2).toUpperCase();
+    return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
+}
+
 // Monta o avatar (div) com a logo do time, tentando cada variação de
 // slug em cada extensão até achar um arquivo que exista. Se nenhuma
 // combinação bater, marca "sem-logo" (CSS desenha um ícone genérico).
@@ -90,3 +98,64 @@ window.handleLogoTimeError = function (img) {
         img.remove();
     }
 };
+
+// ─────────────────────────────────────────────────────────────
+// Foto oficial do jogador (users/{uid}.fotoOficial, arquivo em
+// imagens/jogadores/{uid}.jpg). Se não existir ou falhar ao
+// carregar, cai pro avatar de iniciais coloridas.
+// ─────────────────────────────────────────────────────────────
+
+// Versão para HTML gerado por template string (ex: cards de lista),
+// onde o elemento inteiro (div de iniciais OU img) é montado de uma vez.
+export function avatarJogadorHtml(fotoOficial, nome, cor, classeAvatar, classeImg) {
+    const iniciais  = gerarIniciais(nome);
+    const corSegura = cor || "#555";
+    if (!fotoOficial) {
+        return `<div class="${classeAvatar}" style="background:${corSegura}22;color:${corSegura}">${iniciais}</div>`;
+    }
+    return `<img class="${classeAvatar} ${classeImg}" src="${fotoOficial}" alt=""
+                 data-avatar-classe="${classeAvatar}" data-cor-fallback="${corSegura}" data-iniciais-fallback="${iniciais}"
+                 onerror="handleFotoJogadorError(this)">`;
+}
+
+// Handler global (chamado via onerror inline): troca a <img> quebrada
+// por uma <div> de iniciais coloridas, igual ao fallback de logo.
+window.handleFotoJogadorError = function (img) {
+    const div = document.createElement("div");
+    div.className = img.dataset.avatarClasse || "";
+    const cor = img.dataset.corFallback || "#555";
+    div.style.background = `${cor}22`;
+    div.style.color      = cor;
+    div.textContent      = img.dataset.iniciaisFallback || "";
+    img.replaceWith(div);
+};
+
+// Versão para um elemento fixo já existente no DOM (ex: avatar do
+// modal rápido ou do banner da página do jogador) — atualiza o
+// conteúdo/estilo do elemento em vez de recriar o container inteiro,
+// já que o mesmo elemento é reaproveitado entre aberturas/jogadores.
+export function aplicarAvatarJogador(elemento, fotoOficial, nome, cor, classeImg) {
+    const iniciais  = gerarIniciais(nome);
+    const corSegura = cor || "#555";
+
+    const mostrarIniciais = () => {
+        elemento.innerHTML = "";
+        elemento.textContent = iniciais;
+        elemento.style.background = `${corSegura}22`;
+        elemento.style.color      = corSegura;
+    };
+
+    if (!fotoOficial) {
+        mostrarIniciais();
+        return;
+    }
+
+    elemento.textContent = "";
+    elemento.style.background = "transparent";
+    const img = document.createElement("img");
+    img.className = classeImg;
+    img.src   = fotoOficial;
+    img.alt   = "";
+    img.onerror = mostrarIniciais;
+    elemento.appendChild(img);
+}
