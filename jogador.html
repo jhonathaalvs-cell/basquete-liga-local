@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogador</title>
     <link rel="shortcut icon" href="imagens/favicon.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1C62EB">
     <link rel="stylesheet" href="estilos/global.css">
     <link rel="stylesheet" href="estilos/jogador.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -48,6 +51,10 @@
                 <span id="jr-idade" class="jr-idade oculto"></span>
             </section>
 
+            <button id="btn-baixar-card" class="jr-btn-baixar-card">
+                <i class="fa-solid fa-download"></i> Baixar Card
+            </button>
+
             <!-- Stats da temporada atual -->
             <section class="jr-secao">
                 <h2 class="jr-secao-titulo">Temporada Atual</h2>
@@ -73,10 +80,81 @@
                 <div id="jr-historico" class="jr-historico"></div>
             </section>
 
+            <!-- Histórico de jogos: não é um botão, é a própria seção que
+                 expande/recolhe a lista ao clicar -->
+            <section id="jr-secao-jogos" class="jr-secao oculto">
+                <button type="button" id="jr-toggle-jogos" class="jr-toggle-jogos" aria-expanded="false">
+                    <span class="jr-secao-titulo-toggle">Histórico de Jogos</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div id="jr-lista-jogos" class="jr-lista-jogos oculto"></div>
+            </section>
+
         </div>
 
     </main>
 
+    <!-- ════════════════════════════════════
+         CARD DE EXPORTAÇÃO (fora da tela)
+         Usado só pelo html2canvas pra gerar o PNG do "Baixar Card" —
+         nunca aparece visível na página normal. Layout "card dourado"
+         inspirado na referência visual enviada pelo usuário.
+    ════════════════════════════════════ -->
+    <div id="card-jogador" class="card-jogador-export">
+        <div id="cje-bg" class="cje-bg"></div>
+
+        <div class="cje-header">
+            <span id="cje-liga-nome" class="cje-liga-nome"></span>
+            <span id="cje-temporada" class="cje-temporada"></span>
+        </div>
+
+        <div class="cje-photo-area">
+            <div class="cje-photo-ring">
+                <div id="cje-photo-inner" class="cje-photo-inner"></div>
+            </div>
+            <span id="cje-pos-badge" class="cje-pos-badge oculto"></span>
+        </div>
+
+        <div class="cje-info">
+            <h2 id="cje-nome" class="cje-nome"></h2>
+            <div class="cje-time-row">
+                <span id="cje-time-dot" class="cje-time-dot"></span>
+                <span id="cje-time-nome" class="cje-time-nome"></span>
+            </div>
+            <span id="cje-idade" class="cje-idade oculto"></span>
+        </div>
+
+        <div class="cje-divider"></div>
+
+        <div class="cje-stats">
+            <div class="cje-stat">
+                <span id="cje-stat-jogos" class="cje-stat-val"></span>
+                <span class="cje-stat-label">Jogos</span>
+            </div>
+            <div class="cje-stat">
+                <span id="cje-stat-vit" class="cje-stat-val"></span>
+                <span class="cje-stat-label">Vitórias</span>
+            </div>
+            <div class="cje-stat">
+                <span id="cje-stat-pts" class="cje-stat-val"></span>
+                <span class="cje-stat-label">Pts Total</span>
+            </div>
+            <div class="cje-stat">
+                <span id="cje-stat-media" class="cje-stat-val"></span>
+                <span class="cje-stat-label">Pts/Jogo</span>
+            </div>
+        </div>
+
+        <div class="cje-footer">
+            <span>AGB</span>
+            <span class="cje-footer-dot"></span>
+            <span>Liga Grajauense de Basquete 3x3</span>
+            <span class="cje-footer-dot"></span>
+            <span id="cje-footer-temporada"></span>
+        </div>
+    </div>
+
     <script type="module" src="scripts/jogador.js"></script>
+    <script src="scripts/pwa.js" defer></script>
 </body>
 </html>

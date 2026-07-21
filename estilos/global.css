@@ -137,3 +137,99 @@ body {
     margin-right: 4px;
     flex-shrink: 0;
 }
+
+/* ════ POP-UP "INSTALAR O APP" (PWA) ════ */
+.pwa-popup-instalar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    animation: pwaPopupSobe 0.3s ease both;
+}
+
+@keyframes pwaPopupSobe {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+.pwa-popup-conteudo {
+    width: 100%;
+    max-width: 480px;
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pwa-popup-icone {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.pwa-popup-texto {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pwa-popup-texto strong {
+    font-size: 0.85rem;
+    color: white;
+}
+
+.pwa-popup-texto span {
+    font-size: 0.75rem;
+    color: rgba(237, 237, 239, 0.6);
+    line-height: 1.3;
+}
+
+.pwa-popup-btn {
+    flex-shrink: 0;
+    background: var(--cor2);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pwa-popup-fechar {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: rgba(237, 237, 239, 0.4);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+}
+
+.pwa-popup-fechar:hover {
+    color: white;
+}
+
+@media (max-width: 420px) {
+    .pwa-popup-conteudo {
+        flex-wrap: wrap;
+    }
+
+    .pwa-popup-texto {
+        min-width: 160px;
+    }
+}

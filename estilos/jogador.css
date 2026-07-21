@@ -112,6 +112,36 @@
     margin-top: 6px;
 }
 
+/* ════ BOTÃO BAIXAR CARD */
+.jr-btn-baixar-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto 24px;
+    padding: 12px;
+    background: var(--cor2);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.jr-btn-baixar-card:hover {
+    opacity: 0.85;
+}
+
+.jr-btn-baixar-card:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 /* ════ SEÇÕES */
 .jr-secao {
     margin-bottom: 24px;
@@ -357,4 +387,391 @@
     .jr-hist-stats {
         gap: 10px;
     }
+}
+
+/* ════════════════════════════════════════════════════
+   CARD DE EXPORTAÇÃO (imagem gerada pelo "Baixar Card")
+   Fica sempre fora da tela — só existe pra ser capturado
+   pelo html2canvas, nunca aparece na navegação normal.
+   Visual "card dourado de colecionador" — dimensões fixas em
+   px (não usar vw/vh) pra o html2canvas renderizar de forma
+   previsível. As cores do time (--cje-escura/--cje-media/
+   --cje-accent) são definidas via JS em jogador.js, a partir
+   de identidadeCardTime() (franquias.js).
+   ════════════════════════════════════════════════════ */
+.card-jogador-export {
+    position: fixed;
+    top: -10000px;
+    left: 0;
+    width: 380px;
+    height: 560px;
+    box-sizing: border-box;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow:
+        0 0 0 2px #d4af37,
+        0 0 0 4px #0a0a0f,
+        0 0 0 6px rgba(212, 175, 55, 0.4);
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+}
+
+/* Fundo em gradiente na cor do time (ou dourado genérico via fallback) */
+.cje-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg,
+        var(--cje-escura, #1a1400) 0%,
+        var(--cje-media, #2a2000) 40%,
+        #0a0a0f 100%);
+}
+
+/* Faixa diagonal dourada decorativa */
+.cje-bg::after {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -40px;
+    width: 200px;
+    height: 700px;
+    background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(212, 175, 55, 0.12) 30%,
+        rgba(212, 175, 55, 0.06) 60%,
+        transparent 100%);
+    transform: rotate(-20deg);
+}
+
+.cje-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0;
+}
+
+.cje-liga-nome {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(212, 175, 55, 0.7);
+    text-transform: uppercase;
+}
+
+.cje-temporada {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.cje-photo-area {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+}
+
+.cje-photo-ring {
+    position: relative;
+    width: 148px;
+    height: 148px;
+    border-radius: 50%;
+    padding: 3px;
+    background: conic-gradient(#d4af37 0deg, #fff0a0 90deg, #b8860b 180deg, #d4af37 270deg, #fff0a0 360deg);
+    box-shadow: 0 0 24px rgba(212, 175, 55, 0.4);
+}
+
+.cje-photo-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #1a1a2e;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #0a0a0f;
+    font-size: 2.8rem;
+    font-weight: 900;
+    color: #d4af37;
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    letter-spacing: -1px;
+}
+
+.cje-photo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cje-pos-badge {
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, #b8860b, #d4af37, #fff0a0, #d4af37, #b8860b);
+    color: #0a0a0a;
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    padding: 3px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.cje-info {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 18px 20px 0;
+}
+
+.cje-nome {
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.15;
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+    margin-bottom: 8px;
+    white-space: pre-line;
+}
+
+.cje-time-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.cje-time-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cje-accent, #d4af37);
+    box-shadow: 0 0 6px var(--cje-accent, #d4af37);
+    flex-shrink: 0;
+}
+
+.cje-time-nome {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.cje-idade {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 1px;
+}
+
+.cje-divider {
+    position: relative;
+    z-index: 2;
+    margin: 14px 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5), transparent);
+}
+
+.cje-stats {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 0 16px;
+}
+
+.cje-stat {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 10px;
+    padding: 10px 4px 8px;
+    text-align: center;
+}
+
+.cje-stat-val {
+    display: block;
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: #d4af37;
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.cje-stat-label {
+    font-size: 0.5rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.cje-footer {
+    position: absolute;
+    z-index: 2;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 20px;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.cje-footer span:not(.cje-footer-dot) {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: rgba(212, 175, 55, 0.6);
+    letter-spacing: 1.5px;
+}
+
+.cje-footer-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.4);
+}
+
+/* ════════════════════════════════════════════════════
+   HISTÓRICO DE JOGOS
+   O cabeçalho é um <button> clicável (não um botão de ação
+   chamativo) que expande/recolhe a lista — os jogos já estão
+   carregados em memória, só alterna a visibilidade.
+   ════════════════════════════════════════════════════ */
+.jr-toggle-jogos {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0 4px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.jr-secao-titulo-toggle {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: white;
+}
+
+.jr-toggle-jogos::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.jr-toggle-jogos i {
+    font-size: 11px;
+    color: rgba(237, 237, 239, 0.4);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.jr-toggle-jogos[aria-expanded="true"] i {
+    transform: rotate(180deg);
+}
+
+.jr-lista-jogos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.jr-jogo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.jr-jogo-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.jr-jogo-data {
+    font-size: 0.68rem;
+    color: rgba(237, 237, 239, 0.45);
+    margin-bottom: 2px;
+}
+
+.jr-jogo-confronto {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: rgba(237, 237, 239, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jr-jogo-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.jr-jogo-liga {
+    color: rgba(237, 237, 239, 0.4);
+    font-size: 0.7rem;
+}
+
+.jr-jogo-placar {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.jr-jogo-vitoria {
+    color: #1fc24b;
+}
+
+.jr-jogo-derrota {
+    color: rgba(237, 237, 239, 0.55);
+}
+
+.jr-jogo-pontos {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 40px;
+}
+
+.jr-jogo-pontos-val {
+    font-family: 'Barlow Condensed', 'Gill Sans MT', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #c8950a;
+    line-height: 1;
+}
+
+.jr-jogo-pontos-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(142, 145, 150, 0.7);
 }

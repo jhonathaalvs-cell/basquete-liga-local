@@ -1,0 +1,26 @@
+{
+    "name": "Liga Grajauense de Basquete 3x3",
+    "short_name": "Liga 3x3",
+    "description": "Gestão da Liga Grajauense de Basquete 3x3 — ligas, jogos, times e jogadores.",
+    "start_url": "index.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#181717",
+    "theme_color": "#1C62EB",
+    "lang": "pt-BR",
+    "icons": [
+        {
+            "src": "imagens/logo-liga.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "imagens/logo-liga.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}

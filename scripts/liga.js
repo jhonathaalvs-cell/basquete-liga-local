@@ -735,17 +735,21 @@ async function abrirDraft(ligaId, ligaNome, jogadoresPorTime) {
         }
 
         // Carrega posição de cada jogador do Firestore users/{uid}
+        // uid = d.id (ID do próprio documento) — nunca o campo "uid" gravado
+        // dentro da inscrição, que pode ficar ausente/desatualizado em
+        // documentos antigos ou editados manualmente e quebrar o vínculo
+        // de pontos por jogador mais adiante (pontosJogadores usa esse uid).
         const promessas = snap.docs.map(async (d) => {
             const dados = d.data();
             let posicao = dados.posicao || "";
             if (!posicao) {
                 // Busca no perfil se não estava na inscrição
                 try {
-                    const perfil = await getDoc(doc(db, "users", dados.uid));
+                    const perfil = await getDoc(doc(db, "users", d.id));
                     if (perfil.exists()) posicao = perfil.data().posicao || "—";
                 } catch (_) { posicao = "—"; }
             }
-            return { uid: dados.uid, nomeJogador: dados.nomeJogador, posicao };
+            return { uid: d.id, nomeJogador: dados.nomeJogador, posicao };
         });
 
         draftState.inscritos = await Promise.all(promessas);

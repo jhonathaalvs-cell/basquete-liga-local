@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { auth, db } from "./firebase-config.js";
-import { corTime, aplicarAvatarJogador } from "./franquias.js";
+import { corTime, aplicarAvatarJogador, identidadeCardTime, gerarIniciais } from "./franquias.js";
 
 import {
     onAuthStateChanged
@@ -45,6 +45,42 @@ const jrRedes     = document.getElementById("jr-redes");
 
 const secaoHistorico = document.getElementById("jr-secao-historico");
 const jrHistorico    = document.getElementById("jr-historico");
+
+const secaoJogos    = document.getElementById("jr-secao-jogos");
+const btnToggleJogos = document.getElementById("jr-toggle-jogos");
+const jrListaJogos   = document.getElementById("jr-lista-jogos");
+
+// ─── DOM refs — botão e card de exportação (imagem) ───────────
+const btnBaixarCard   = document.getElementById("btn-baixar-card");
+const cardExportEl    = document.getElementById("card-jogador");
+const cjeBg           = document.getElementById("cje-bg");
+const cjeLigaNome     = document.getElementById("cje-liga-nome");
+const cjeTemporada    = document.getElementById("cje-temporada");
+const cjePhotoInner   = document.getElementById("cje-photo-inner");
+const cjePosBadge     = document.getElementById("cje-pos-badge");
+const cjeNome         = document.getElementById("cje-nome");
+const cjeTimeDot      = document.getElementById("cje-time-dot");
+const cjeTimeNome     = document.getElementById("cje-time-nome");
+const cjeIdade        = document.getElementById("cje-idade");
+const cjeStatJogos    = document.getElementById("cje-stat-jogos");
+const cjeStatVit      = document.getElementById("cje-stat-vit");
+const cjeStatPts      = document.getElementById("cje-stat-pts");
+const cjeStatMedia    = document.getElementById("cje-stat-media");
+const cjeFooterTemporada = document.getElementById("cje-footer-temporada");
+
+// Guarda os dados já carregados do jogador em destaque pra montar
+// o card de exportação sob demanda, sem refazer as consultas
+let jogadorCarregado = null; // { atual, perfil }
+
+// ─────────────────────────────────────────────────────────────
+// Histórico de Jogos: não é um botão de ação, é só a seção que
+// expande/recolhe a lista ao clicar (os jogos já estão carregados
+// em memória — não busca nada de novo no Firestore)
+// ─────────────────────────────────────────────────────────────
+btnToggleJogos.addEventListener("click", () => {
+    const aberto = jrListaJogos.classList.toggle("oculto") === false;
+    btnToggleJogos.setAttribute("aria-expanded", String(aberto));
+});
 
 // ─────────────────────────────────────────────────────────────
 // PONTO DE ENTRADA
@@ -111,7 +147,13 @@ async function carregarJogador() {
         // Temporada em destaque: a liga ativa (se houver), senão a mais recente
         const atual = temporadas.find(t => t.ligaStatus === "ativo") || temporadas[0];
 
-        renderizarJogador(atual, temporadas, perfil);
+        // Junta os jogos de todas as temporadas num histórico único,
+        // do mais recente pro mais antigo (jogos sem data vão pro fim)
+        const historicoJogos = temporadas
+            .flatMap(t => t.jogosDetalhados)
+            .sort((a, b) => (b.data || "0000-00-00").localeCompare(a.data || "0000-00-00"));
+
+        renderizarJogador(atual, temporadas, perfil, historicoJogos);
 
     } catch (erro) {
         console.error("Erro ao carregar jogador:", erro);
@@ -146,12 +188,14 @@ async function buscarTemporada(ligaDoc, uid) {
     });
 
     const time = timesMap[inscricao.timeId] || null;
+    const ligaNome = ligaData.nome;
 
     // Percorre os jogos finalizados do time do jogador nessa liga
     let jogosCount = 0;
     let vitorias   = 0;
     let totalPontos = 0;
     let jogosComPontos = 0;
+    const jogosDetalhados = []; // um item por jogo — usado no Histórico de Jogos
 
     jogosSnap.docs.forEach(d => {
         const jogo = d.data();
@@ -166,7 +210,22 @@ async function buscarTemporada(ligaDoc, uid) {
             jogosCount++;
             const placarA = Number(jogo.placarA) || 0;
             const placarB = Number(jogo.placarB) || 0;
-            if ((souTimeA && placarA > placarB) || (souTimeB && placarB > placarA)) vitorias++;
+            const venceu  = (souTimeA && placarA > placarB) || (souTimeB && placarB > placarA);
+            if (venceu) vitorias++;
+
+            const adversario = souTimeA ? jogo.timeB : jogo.timeA;
+            jogosDetalhados.push({
+                jogoId:          d.id,
+                data:            jogo.data || null,
+                dataFormatada:   formatarDataJogo(jogo.data),
+                ligaNome,
+                meuTimeCor:      time ? time.cor : "#555",
+                adversarioNome:  adversario?.nome || "Adversário",
+                meuPlacar:       souTimeA ? placarA : placarB,
+                placarAdversario: souTimeA ? placarB : placarA,
+                venceu,
+                pontosJogador:   Number(jogo.pontosJogadores?.[uid]) || 0
+            });
         }
 
         if (jogo.pontosJogadores && jogo.pontosJogadores[uid] != null) {
@@ -181,8 +240,9 @@ async function buscarTemporada(ligaDoc, uid) {
 
     return {
         ligaId,
-        ligaNome:    ligaData.nome,
+        ligaNome,
         ligaStatus:  ligaData.status,
+        ligaAno:     ligaData.criadoEm?.toDate ? ligaData.criadoEm.toDate().getFullYear() : new Date().getFullYear(),
         nomeJogador: inscricao.nomeJogador || "Jogador",
         timeNome:    time ? time.nome : "Sem time",
         timeCor:     time ? time.cor  : "#555",
@@ -191,18 +251,21 @@ async function buscarTemporada(ligaDoc, uid) {
         vitorias,
         pctVitorias: jogosCount > 0 ? Math.round((vitorias / jogosCount) * 100) : null,
         totalPontos,
-        mediaPontos
+        mediaPontos,
+        jogosDetalhados
     };
 }
 
 // ─────────────────────────────────────────────────────────────
-// renderizarJogador(atual, temporadas, perfil)
-// Preenche banner, stats da temporada atual, bio, redes e
-// histórico completo de temporadas
+// renderizarJogador(atual, temporadas, perfil, historicoJogos)
+// Preenche banner, stats da temporada atual, bio, redes,
+// histórico completo de temporadas e histórico de jogos
 // ─────────────────────────────────────────────────────────────
-function renderizarJogador(atual, temporadas, perfil) {
+function renderizarJogador(atual, temporadas, perfil, historicoJogos) {
     telaLoading.classList.add("oculto");
     conteudoEl.classList.remove("oculto");
+
+    jogadorCarregado = { atual, perfil };
 
     // Nome completo (Perfil) tem prioridade sobre o apelido registrado na liga
     const nomeExibido = perfil.nomeCompleto || atual.nomeJogador;
@@ -279,6 +342,14 @@ function renderizarJogador(atual, temporadas, perfil) {
         jrHistorico.innerHTML = temporadas.map(renderCardTemporada).join("");
         secaoHistorico.classList.remove("oculto");
     }
+
+    // Histórico de jogos — a seção fica visível, mas a lista em si só
+    // aparece quando a pessoa clica pra expandir (ver toggle mais abaixo)
+    if (historicoJogos.length > 0) {
+        const mostrarLiga = temporadas.length > 1;
+        jrListaJogos.innerHTML = historicoJogos.map(j => renderJogoItem(j, mostrarLiga)).join("");
+        secaoJogos.classList.remove("oculto");
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -288,6 +359,143 @@ function mostrarNaoEncontrado() {
     telaLoading.classList.add("oculto");
     telaNaoEncontrado.classList.remove("oculto");
 }
+
+// ─────────────────────────────────────────────────────────────
+// quebrarNomeCard(nome) → nome em até 2 linhas (\n no meio),
+// pra caber bem no card mesmo com nome completo grande
+// ─────────────────────────────────────────────────────────────
+function quebrarNomeCard(nome) {
+    const palavras = nome.trim().split(/\s+/);
+    if (palavras.length <= 2) return nome;
+    const meio = Math.ceil(palavras.length / 2);
+    return `${palavras.slice(0, meio).join(" ")}\n${palavras.slice(meio).join(" ")}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// formatarPosicaoCard(posicao) → "Ala-Armador (SG)" → "ALA-ARMADOR · SG"
+// ─────────────────────────────────────────────────────────────
+function formatarPosicaoCard(posicao) {
+    return posicao.toUpperCase().replace("(", "· ").replace(")", "");
+}
+
+// ─────────────────────────────────────────────────────────────
+// preencherCardExport()
+// Copia os dados já carregados do jogador pro card oculto
+// (#card-jogador), que existe só pra ser capturado em imagem
+// ─────────────────────────────────────────────────────────────
+function preencherCardExport() {
+    const { atual, perfil } = jogadorCarregado;
+    const cor = atual.timeCor || "#555";
+    const nomeExibido = perfil.nomeCompleto || atual.nomeJogador;
+
+    // Cores do time nesse card (fundo em gradiente + acento) — cadastradas
+    // por franquia em franquias.js, com fallback derivado da cor normal
+    const identidadeCard = identidadeCardTime(atual.timeNome, cor);
+    cjeBg.style.setProperty("--cje-escura", identidadeCard.cardEscura);
+    cjeBg.style.setProperty("--cje-media",  identidadeCard.cardMedia);
+    cjeTimeDot.style.setProperty("--cje-accent", identidadeCard.cardAccent);
+
+    cjeLigaNome.textContent  = atual.ligaNome;
+    cjeTemporada.textContent = atual.ligaAno;
+    cjeFooterTemporada.textContent = `Temporada ${atual.ligaAno}`;
+
+    // Foto/iniciais — dourado sempre, independente da cor do time (visual
+    // uniforme de "card de colecionador"), por isso não usa aplicarAvatarJogador
+    cjePhotoInner.innerHTML = "";
+    if (perfil.fotoOficial) {
+        const img = document.createElement("img");
+        img.className = "cje-photo-img";
+        img.src = perfil.fotoOficial;
+        img.alt = "";
+        img.onerror = () => {
+            cjePhotoInner.innerHTML = "";
+            cjePhotoInner.textContent = gerarIniciais(nomeExibido);
+        };
+        cjePhotoInner.appendChild(img);
+    } else {
+        cjePhotoInner.textContent = gerarIniciais(nomeExibido);
+    }
+
+    cjeNome.textContent         = quebrarNomeCard(nomeExibido);
+    cjeTimeNome.textContent     = atual.timeNome;
+
+    if (perfil.posicao) {
+        cjePosBadge.textContent = formatarPosicaoCard(perfil.posicao);
+        cjePosBadge.classList.remove("oculto");
+    } else {
+        cjePosBadge.classList.add("oculto");
+    }
+
+    const idade = calcularIdade(perfil.dataNascimento);
+    if (idade !== null) {
+        cjeIdade.textContent = `${idade} anos`;
+        cjeIdade.classList.remove("oculto");
+    } else {
+        cjeIdade.classList.add("oculto");
+    }
+
+    const pct = atual.pctVitorias;
+    cjeStatJogos.textContent = atual.jogosCount;
+    cjeStatVit.textContent   = pct !== null ? `${pct}%` : "—";
+    cjeStatPts.textContent   = atual.totalPontos;
+    cjeStatMedia.textContent = atual.mediaPontos;
+}
+
+// ─────────────────────────────────────────────────────────────
+// aguardarImagemCarregar(container)
+// Espera a <img> dentro do container terminar de carregar (ou
+// falhar) antes de capturar o card — evita foto cortada/em branco
+// na imagem gerada.
+// ─────────────────────────────────────────────────────────────
+function aguardarImagemCarregar(container) {
+    const img = container.querySelector("img");
+    if (!img || img.complete) return Promise.resolve();
+    return new Promise(resolve => {
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────
+// baixarCardJogador()
+// Gera o PNG do card (via html2canvas) e dispara o download
+// ─────────────────────────────────────────────────────────────
+async function baixarCardJogador() {
+    if (!jogadorCarregado || typeof html2canvas === "undefined") return;
+
+    const textoOriginal = btnBaixarCard.innerHTML;
+    btnBaixarCard.disabled = true;
+    btnBaixarCard.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando...';
+
+    try {
+        preencherCardExport();
+        await aguardarImagemCarregar(cjePhotoInner);
+
+        const canvas = await html2canvas(cardExportEl, {
+            backgroundColor: null,
+            scale: 3,
+            useCORS: true
+        });
+
+        const nomeExibido  = jogadorCarregado.perfil.nomeCompleto || jogadorCarregado.atual.nomeJogador;
+        const nomeArquivo  = nomeExibido.trim().replace(/\s+/g, "_");
+        const ano          = jogadorCarregado.atual.ligaAno;
+
+        const link = document.createElement("a");
+        link.download = `card_${nomeArquivo}_AGB${ano}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+
+    } catch (erro) {
+        console.error("Erro ao gerar card do jogador:", erro);
+        alert("Não foi possível gerar a imagem. Tente novamente.");
+    } finally {
+        btnBaixarCard.disabled = false;
+        btnBaixarCard.innerHTML = textoOriginal;
+    }
+}
+
+btnBaixarCard.addEventListener("click", baixarCardJogador);
 
 // ─────────────────────────────────────────────────────────────
 // renderCardTemporada(t) → card de uma temporada no histórico
@@ -335,6 +543,32 @@ function renderCardTemporada(t) {
                         <span class="jr-hist-label">Pts/jogo</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    `;
+}
+
+// ─────────────────────────────────────────────────────────────
+// renderJogoItem(j, mostrarLiga) → linha de um jogo no
+// Histórico de Jogos (data, adversário, placar e pontos feitos)
+// ─────────────────────────────────────────────────────────────
+function renderJogoItem(j, mostrarLiga) {
+    return `
+        <div class="jr-jogo-item">
+            <div class="jr-jogo-info">
+                <div class="jr-jogo-data">${j.dataFormatada || "Data não definida"}</div>
+                <div class="jr-jogo-confronto">
+                    <span class="jr-jogo-dot" style="background:${j.meuTimeCor}"></span>
+                    vs ${j.adversarioNome}
+                    ${mostrarLiga ? `<span class="jr-jogo-liga">· ${j.ligaNome}</span>` : ""}
+                </div>
+            </div>
+            <div class="jr-jogo-placar ${j.venceu ? "jr-jogo-vitoria" : "jr-jogo-derrota"}">
+                ${j.meuPlacar} × ${j.placarAdversario}
+            </div>
+            <div class="jr-jogo-pontos">
+                <span class="jr-jogo-pontos-val">${j.pontosJogador}</span>
+                <span class="jr-jogo-pontos-label">pts</span>
             </div>
         </div>
     `;
@@ -410,4 +644,15 @@ function formatarData(timestamp) {
     const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     if (isNaN(data.getTime())) return null;
     return data.toLocaleDateString("pt-BR");
+}
+
+// ─────────────────────────────────────────────────────────────
+// formatarDataJogo(data) → "DD/MM/AAAA" a partir do campo "data"
+// de um jogo, no formato "AAAA-MM-DD" (input type="date")
+// ─────────────────────────────────────────────────────────────
+function formatarDataJogo(data) {
+    if (!data) return null;
+    const [ano, mes, dia] = data.split("-");
+    if (!ano || !mes || !dia) return null;
+    return `${dia}/${mes}/${ano}`;
 }

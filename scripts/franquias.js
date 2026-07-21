@@ -12,13 +12,16 @@
 
 export const LOGO_TIME_EXTENSOES = ["jpeg", "jpg", "png", "webp"];
 
-// slug (sem separador) → { cor, corSecundaria? }
+// slug (sem separador) → { cor, corSecundaria?, cardEscura?, cardMedia?, cardAccent? }
+// cardEscura/cardMedia/cardAccent são usadas só no fundo em gradiente e no
+// acento do card de imagem (jogador.html → "Baixar Card") — independentes
+// de cor/corSecundaria pra não afetar os outros usos (bordas, pontinhos, etc).
 export const IDENTIDADE_FRANQUIAS = {
-    abbasketball:  { cor: "#1c3f7c", corSecundaria: "#f2f4f8" }, // AB Basketball — azul escuro + branco
-    dallas:        { cor: "#4d7ea8", corSecundaria: "#c7d0d9" }, // Dallas — azul médio + prata
-    grajabulls:    { cor: "#c1272d" },                           // Graja Bulls — vermelho
-    blackpanthers: { cor: "#7b3fe4" },                           // Black Panthers — roxo
-    ugb:           { cor: "#d4af37" },                           // UGB — dourado
+    abbasketball:  { cor: "#1c3f7c", corSecundaria: "#f2f4f8", cardEscura: "#0a1628", cardMedia: "#0d2040", cardAccent: "#4a90d9" }, // AB Basketball — azul escuro + branco
+    dallas:        { cor: "#4d7ea8", corSecundaria: "#c7d0d9", cardEscura: "#0a0a14", cardMedia: "#101020", cardAccent: "#9ca3af" }, // Dallas — azul médio + prata
+    grajabulls:    { cor: "#c1272d", cardEscura: "#1a0505", cardMedia: "#2a0808", cardAccent: "#dc2626" },                           // Graja Bulls — vermelho
+    blackpanthers: { cor: "#7b3fe4", cardEscura: "#12051e", cardMedia: "#1e0a30", cardAccent: "#9333ea" },                           // Black Panthers — roxo
+    ugb:           { cor: "#d4af37", cardEscura: "#1a1400", cardMedia: "#2a2000", cardAccent: "#d4af37" },                           // UGB — dourado
 };
 
 // Converte o nome do time num slug (ex: "Graja Bulls" → "graja_bulls")
@@ -54,6 +57,23 @@ export function identidadeTime(nome) {
 // bater; senão cai pra cor guardada no Firestore (corPadrao).
 export function corTime(nome, corPadrao) {
     return identidadeTime(nome)?.cor || corPadrao;
+}
+
+// Cores do card de imagem (fundo em gradiente + acento) pro time. Se a
+// franquia não tiver essas cores cadastradas, deriva um gradiente escuro
+// a partir da cor normal do time via color-mix (sem precisar calcular
+// manualmente tons mais escuros em JS).
+export function identidadeCardTime(nome, corPadrao) {
+    const id = identidadeTime(nome);
+    if (id?.cardEscura) {
+        return { cardEscura: id.cardEscura, cardMedia: id.cardMedia, cardAccent: id.cardAccent || id.cor };
+    }
+    const base = corPadrao || "#555";
+    return {
+        cardEscura: `color-mix(in srgb, ${base} 25%, #05050a)`,
+        cardMedia:  `color-mix(in srgb, ${base} 40%, #05050a)`,
+        cardAccent: base
+    };
 }
 
 // gerarIniciais(nome) → "AB" a partir de um nome (jogador ou time).
